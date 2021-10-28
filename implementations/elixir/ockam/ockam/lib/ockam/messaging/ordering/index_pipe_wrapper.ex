@@ -23,6 +23,9 @@ defmodule Ockam.Messaging.Ordering.IndexPipe.Wrapper do
            :bare.decode(payload, @schema),
          {:ok, message} <- Ockam.Wire.decode(Ockam.Wire.Binary.V2, encoded_message) do
       {:ok, index, message}
+    else
+      {:ok, _decoded, _rest} = bare_result ->
+        {:error, {:bare_decode_error, payload, bare_result}}
     end
   end
 end

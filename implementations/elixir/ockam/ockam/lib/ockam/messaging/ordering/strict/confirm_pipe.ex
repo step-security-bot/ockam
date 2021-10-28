@@ -57,7 +57,7 @@ defmodule Ockam.Messaging.Ordering.Strict.ConfirmPipe.Sender do
   def handle_outer_message(message, state) do
     case waiting_confirm?(state) do
       true ->
-        queue_message(message, state)
+        enqueue_message(message, state)
 
       false ->
         send_message(message, state)
@@ -74,7 +74,7 @@ defmodule Ockam.Messaging.Ordering.Strict.ConfirmPipe.Sender do
     Map.get(state, :waiting_confirm, false)
   end
 
-  def queue_message(message, state) do
+  def enqueue_message(message, state) do
     queue = Map.get(state, :queue, [])
     {:ok, Map.put(state, :queue, queue ++ [message])}
   end
@@ -114,6 +114,7 @@ defmodule Ockam.Messaging.Ordering.Strict.ConfirmPipe.Sender do
   end
 end
 
+## TODO: use confirm ref similar ro Ockam.Messaging.Delivery.ResendPipe.Receiver
 defmodule Ockam.Messaging.Ordering.Strict.ConfirmPipe.Receiver do
   @moduledoc """
   Confirm receiver sends a confirm message for every message received
