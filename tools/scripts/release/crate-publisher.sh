@@ -32,6 +32,8 @@ crates=(
     "ockam"
 );
 
+# TODO: We use git push -f not sure if this is safe.
+
 
 if [[ -z $TOKEN ]]; then
     echo "$(tput setaf 1)Token not specified$(tput sgr0)"
@@ -57,6 +59,11 @@ is_folder_updated(){
     echo $updated
 }
 
+# We try to strip the version from changelog
+# ## v0.36.0 - 2021-10-29 should strip out just the
+# version. But if we have same date for different versions
+# could cause issues.
+# TODO: this could go wrong if we push >1 same day.
 get_changelog_version(){
     query="## v[^\"]* - $1";
     version=$(eval "grep -w '$query' CHANGELOG.md  | sed -e 's/^##\ //' -e 's/ - $1$//' ");
@@ -120,7 +127,7 @@ else
     exit 1;
 fi
 
-read -p "Please confirm git diff and press enter to push to develop or ctrl-c to abort:   ";
+read -p "Please confirm git diff and press enter to push to upstream branch or ctrl-c to abort:   ";
 
 commit_message="feat(rust): crate release $(date +'%b %d %Y')";
 
@@ -138,6 +145,7 @@ else
     exit 1;
 fi
 
+# Push commits to current branch so that it can be merged to main.
 current_branch=$(eval "git rev-parse --abbrev-ref HEAD");
 if git push --set-upstream origin "$current_branch" -f; then
     echo "$(tput setaf 2)successfully pushed to upstream$(tput sgr0)";
@@ -163,6 +171,7 @@ for d in "${crates[@]}"; do
             cd "../../../implementations/rust/ockam/$d";
             # TODO: We can store all versions DRY.
             version=$(get_changelog_version $current_date);
+            echo "version is $version";
             stripped_version="${version//v}";
 
             if [ -z "$version" ]; then
@@ -171,9 +180,9 @@ for d in "${crates[@]}"; do
                 tag="${d}_${version}"
                 echo "$(tput setaf 2)Tagging $tag$(tput sgr0)";
 
-                text="[Crate](https://crates.io/crates/$d/$stripped_version)"
-"* [Documentation](https://docs.rs/$d/$stripped_version/$d/)"
-"* [CHANGELOG](https://github.com/ockam-network/ockam/blob/${d}_$version/implementations/rust/ockam/$d/CHANGELOG.md)"
+                text="[Crate](https://crates.io/crates/$d/$stripped_version)
+* [Documentation](https://docs.rs/$d/$stripped_version/$d/)
+* [CHANGELOG](https://github.com/ockam-network/ockam/blob/${d}_$version/implementations/rust/ockam/$d/CHANGELOG.md)";
 
                 if gh release create --notes "$text" -t "$d $version (rust crate)" "$tag"; then
                     echo "$(tput setaf 2)$d $version crate git tagged$(tput sgr0)";
@@ -225,3 +234,5 @@ for d in "${crates[@]}"; do
         fi
     )
 done
+
+echo "Crates Publishing successful. Crates published are \n ${modified_crates[@]}";
