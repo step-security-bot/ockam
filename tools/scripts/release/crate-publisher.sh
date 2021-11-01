@@ -96,7 +96,7 @@ echo "current commit $current_commit";
 # Bump only crates that have been change with respech to
 # upstream branch.
 # Since cargo release binary also updates crates that are
-# interdependent, we can also updates crates whose Cargo.toml 
+# interdependent, we can also updates crates whose Cargo.toml
 # has also been updated.
 for d in "${crates[@]}"; do
     crate_updated="$(is_folder_updated $d)";
@@ -208,7 +208,7 @@ done
 # Cargo publish only crates that were bumped.
 for d in "${crates[@]}"; do
     (
-         if [ -z "${modified_crates[$d]}" ]; then
+        if [ -z "${modified_crates[$d]}" ]; then
             echo "$(tput setaf 2)$d crate will not be published as it is not modified$(tput sgr0)";
 
         else
