@@ -45,9 +45,17 @@ if [[ -z $UPSTREAM ]]; then
     exit 1;
 fi
 
+if git rev-parse --verify "$UPSTREAM"; then
+    echo "$(tput setaf 2)upstream branch $UPSTREAM exists $(tput sgr0)";
+else
+    echo "$(tput setaf 1)upstream branch $UPSTREAM does not exists $(tput sgr0)";
+    exit 1;
+fi
+
 
 is_folder_updated(){
     cd "../../../implementations/rust/ockam/$1";
+
     updated=1;
     git diff "$UPSTREAM" --quiet --name-status -- ./src || updated=0;
 
@@ -66,7 +74,7 @@ is_folder_updated(){
 # TODO: this could go wrong if we push >1 same day.
 get_changelog_version(){
     query="## v[^\"]* - $1";
-    version=$(eval "grep -w '$query' CHANGELOG.md  | sed -e 's/^##\ //' -e 's/ - $1$//' ");
+    version=$(eval "grep -w -m 1 '$query' CHANGELOG.md  | sed -e 's/^##\ //' -e 's/ - $1//' ");
     echo $version
 }
 
@@ -74,7 +82,7 @@ get_changelog_version(){
 
 
 if cargo install cargo-release; then
-    echo "$(tput setaf 2)cargo release installed$(tput sgr0)"
+    echo "$(tput setaf 2)cargo release installed$(tput sgr0)\n\n"
 else
     echo "$(tput setaf 1)Failed to install cargo releaser$(tput sgr0)";
     exit 1;
@@ -96,7 +104,7 @@ for d in "${crates[@]}"; do
         if [[ $crate_updated == 0 ]]; then
             cd "../../../implementations/rust/ockam/$d";
             if echo y | cargo  release minor --skip-tag --skip-push --skip-publish --no-dev-version --execute -q; then
-                echo "$(tput setaf 2)Bumped $d crate$(tput sgr0)";
+                echo "$(tput setaf 2)Bumped $d crate$(tput sgr0)\n\n";
             else
                 git reset $current_commit;
                 read -p "crate $d bump failed. Press enter to continue or ctrl-c to exit:   ";
@@ -113,7 +121,7 @@ for d in "${crates[@]}"; do
 done
 
 if [[ ${#modified_crates[@]} == 0 ]]; then
-    echo "$(tput setaf 2)${#modified_crates[@]} no crate was updated. exiting$(tput sgr0)";
+    echo "$(tput setaf 2)${#modified_crates[@]} no crate was updated. exiting$(tput sgr0)\n\n";
     exit 0;
 fi
 
@@ -121,9 +129,9 @@ fi
 
 # Push commits upstream.
 if git reset $current_commit; then
-    echo "$(tput setaf 2)cargo release commits squashed$(tput sgr0)";
+    echo "$(tput setaf 2)cargo release commits squashed$(tput sgr0)\n\n";
 else
-    echo "$(tput setaf 2)error reseting cargo release commits$(tput sgr0)";
+    echo "$(tput setaf 2)error reseting cargo release commits$(tput sgr0)\n\n";
     exit 1;
 fi
 
@@ -180,7 +188,7 @@ for d in "${crates[@]}"; do
                 tag="${d}_${version}"
                 echo "$(tput setaf 2)Tagging $tag$(tput sgr0)";
 
-                text="[Crate](https://crates.io/crates/$d/$stripped_version)
+                text="* [Crate](https://crates.io/crates/$d/$stripped_version)
 * [Documentation](https://docs.rs/$d/$stripped_version/$d/)
 * [CHANGELOG](https://github.com/ockam-network/ockam/blob/${d}_$version/implementations/rust/ockam/$d/CHANGELOG.md)";
 
