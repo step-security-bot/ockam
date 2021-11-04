@@ -8,3 +8,6 @@ edition = "2018"
 
 [dependencies]
 ockam = { path = "../../../implementations/rust/ockam/ockam", version = "0" }
+
+[package.metadata.release]
+release = false

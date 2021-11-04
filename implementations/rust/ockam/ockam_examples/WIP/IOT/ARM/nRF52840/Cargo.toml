@@ -34,3 +34,5 @@ debug = true
 [profile.release]
 debug = true
 
+[package.metadata.release]
+release = false

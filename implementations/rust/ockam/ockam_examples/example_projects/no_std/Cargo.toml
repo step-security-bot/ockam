@@ -62,3 +62,6 @@ incremental = false
 lto = true
 opt-level = "z"
 codegen-units = 1
+
+[package.metadata.release]
+release = false

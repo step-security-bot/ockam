@@ -13,3 +13,6 @@ repository = "https://github.com/ockam-network/ockam"
 [dependencies]
 ockam = { path = "../ockam", features = ["ockam_vault", "ockam_transport_tcp"]}
 tracing = { version = "0.1", default-features = false }
+
+[package.metadata.release]
+release = false

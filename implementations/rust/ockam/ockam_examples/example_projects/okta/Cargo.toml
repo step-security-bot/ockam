@@ -10,7 +10,6 @@ name = "oktaplugin"
 
 [dependencies]
 base64-url = "1.4"
-colored = "2.0"
 dirs = "3.0"
 generic-array = "0.12"
 isahc = "0.9"
@@ -20,3 +19,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde-big-array = "0.3"
 structopt = "0.3"
+
+[package.metadata.release]
+release = false

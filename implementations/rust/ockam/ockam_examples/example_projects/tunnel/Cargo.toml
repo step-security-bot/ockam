@@ -8,3 +8,6 @@ publish = false
 [dependencies]
 ockam = { path = "../../../ockam" }
 rand = "0.8"
+
+[package.metadata.release]
+release = false

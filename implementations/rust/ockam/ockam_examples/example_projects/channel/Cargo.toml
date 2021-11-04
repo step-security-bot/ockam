@@ -23,3 +23,6 @@ name = "channel_examples_client"
 [[bin]]
 path = "src/bin/server.rs"
 name = "channel_examples_server"
+
+[package.metadata.release]
+release = false

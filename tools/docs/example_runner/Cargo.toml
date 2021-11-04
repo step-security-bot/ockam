@@ -12,3 +12,6 @@ ron = "*"
 serde = "*"
 anyhow = "*"
 rand = "*"
+
+[package.metadata.release]
+release = false

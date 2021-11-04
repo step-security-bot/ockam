@@ -15,3 +15,6 @@ ockam_transport_tcp = { path = "../../../ockam_transport_tcp" }
 # https://github.com/rust-lang/rust/issues/27812
 serde = { version = "1.0", features = ["derive"] }
 tracing = { version = "0.1", default-features = false }
+
+[package.metadata.release]
+release = false

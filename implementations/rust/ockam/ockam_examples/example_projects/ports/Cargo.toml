@@ -28,3 +28,6 @@ path = "src/bin/outlet.rs"
 [[bin]]
 name = "ports_example_outlet_hub"
 path = "src/bin/outlet_hub.rs"
+
+[package.metadata.release]
+release = false
