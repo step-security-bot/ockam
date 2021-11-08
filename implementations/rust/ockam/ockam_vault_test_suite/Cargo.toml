@@ -16,3 +16,6 @@ repository = "https://github.com/ockam-network/ockam/tree/develop/implementation
 ockam_core = {path = "../ockam_core", version = "0.37.0"          }
 ockam_vault_core = {path = "../ockam_vault_core", version = "0.31.0"          }
 arrayref = "0.3"
+
+[package.metadata.release]
+release = true

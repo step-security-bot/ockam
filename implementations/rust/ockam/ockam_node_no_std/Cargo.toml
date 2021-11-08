@@ -33,3 +33,6 @@ alloc = []
 
 [dependencies]
 executor = "0.7.0"
+
+[package.metadata.release]
+release = true

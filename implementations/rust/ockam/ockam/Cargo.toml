@@ -103,3 +103,6 @@ ockam_key_exchange_xx = { path = "../ockam_key_exchange_xx", version = "0.30.0" 
 trybuild = { version = "1.0", features = ["diff"] }
 serde_json = "1.0"
 rand_xorshift = "0.3"
+
+[package.metadata.release]
+release = true

@@ -41,3 +41,6 @@ ockam_executor = { path = "../ockam_executor", version = "0.6.0" , default-featu
 # TODO replace cortex-m-semihosting with 'log'
 cortex-m = "0.7.3"
 cortex-m-semihosting = "0.3.7"
+
+[package.metadata.release]
+release = true

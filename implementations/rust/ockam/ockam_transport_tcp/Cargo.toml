@@ -38,3 +38,6 @@ tracing = { version = "0.1", default-features = false }
 [dev-dependencies]
 trybuild = { version = "1.0", features = ["diff"] }
 ockam_node_test_attribute = { path = "../ockam_node_test_attribute", version = "0.2.0"   }
+
+[package.metadata.release]
+release = true

@@ -34,3 +34,6 @@ serde = {version = "1.0", default-features = false, features = ["derive"]}
 serde-big-array = "0.3"
 zeroize = { version = "1.4.2", features = ["zeroize_derive"] }
 cfg-if = "1.0"
+
+[package.metadata.release]
+release = true

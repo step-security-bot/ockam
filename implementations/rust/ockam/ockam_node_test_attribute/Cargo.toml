@@ -37,3 +37,6 @@ syn = {version = "1.0", features = ["full", "extra-traits"]}
 ockam = { path = "../ockam",  default-features = false, features = ["std"] }
 ockam_node = { path = "../ockam_node", default-features = false, features = ["std"] }
 trybuild = "1.0"
+
+[package.metadata.release]
+release = true

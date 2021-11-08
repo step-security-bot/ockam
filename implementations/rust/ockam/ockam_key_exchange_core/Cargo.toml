@@ -29,3 +29,6 @@ alloc = ["ockam_core/alloc", "ockam_vault_core/alloc"]
 ockam_core = { path = "../ockam_core", version = "0.37.0" , default_features = false }
 ockam_vault_core = { path = "../ockam_vault_core", version = "0.31.0" , default_features = false }
 zeroize = { version = "1.4.2", features = ["zeroize_derive"] }
+
+[package.metadata.release]
+release = true

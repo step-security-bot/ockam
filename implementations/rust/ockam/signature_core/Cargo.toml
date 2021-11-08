@@ -35,3 +35,6 @@ serde-big-array = "0.3"
 [dev-dependencies]
 rand = "0.8.3"
 serde_json = "1.0"
+
+[package.metadata.release]
+release = true
