@@ -7,7 +7,7 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ockam = { path = "../../../implementations/rust/ockam/ockam", version = "0" }
+ockam = { path = "../../../implementations/rust/ockam/ockam", version = "0.37.0" }
 
 [package.metadata.release]
 release = false

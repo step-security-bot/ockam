@@ -40,11 +40,11 @@ for (( c=0; c<$length; c++ )); do
     fi
 done
 
-exclude_string="";
+exclude_string="--exclude ockam";
 
-for crate in $crates_to_be_excluded[@]; do
-    exclude_string="$exclude_string --exclude $crate";
+for crate in ${crates_to_be_excluded[@]}; do
+    exclude_string="${exclude_string[@]} --exclude $crate";
 done
 
-# Bump all crates.
-cargo release minor --no-tag --no-push --no-publish $exclude_string --execute;
+# Bump all crates and publish them.
+cargo release minor --no-tag --no-dev-version $exclude_string --token nnn --execute;
