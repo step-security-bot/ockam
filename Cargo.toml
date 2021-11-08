@@ -34,3 +34,4 @@ pre-release-replacements = [
   {file="CHANGELOG.md", min=0, search="Unreleased", replace="v{{version}} - {{date}}"},
   {file="README.md", min=0, search="= \".*\"", replace="= \"{{version}}\""},
 ]
+pre-release-commit-message = "feat(rust): crate release {{date}}"
