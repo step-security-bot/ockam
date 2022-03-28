@@ -25,7 +25,10 @@ ext {
 task lint_cargo_fmt_check {
   doLast {
     exec {
-      environment RUSTFLAGS: "-Dwarnings"
+      if (ci) {
+        environment RUSTFLAGS: "-Dwarnings"
+      }
+
       commandLine cargo('fmt', '--all', '--', '--check')
     }
   }
@@ -54,7 +57,10 @@ task lint {
 task build_docs {
   doLast {
     exec {
-      environment RUSTFLAGS: "-Dwarnings"
+      if (ci) {
+        environment RUSTFLAGS: "-Dwarnings"
+      }
+
       commandLine cargo('doc', '--no-deps')
     }
   }
@@ -64,10 +70,10 @@ task build {
   doLast {
     exec {
       if (ci) {
-        environment RUSTFLAGS: "-Cdebuginfo=0"
+        environment RUSTFLAGS: "-Cdebuginfo=0 -Dwarnings"
         environment CARGO_INCREMENTAL: "0"
       }
-      environment RUSTFLAGS: "-Dwarnings"
+
       commandLine cargo('--locked', 'build')
     }
   }
@@ -79,8 +85,9 @@ task build_examples {
       if (ci) {
         environment RUSTFLAGS: "-Cdebuginfo=0"
         environment CARGO_INCREMENTAL: "0"
+        environment RUSTFLAGS: "-Dwarnings"
       }
-      environment RUSTFLAGS: "-Dwarnings"
+
       commandLine cargo('--locked', 'build', '--examples')
     }
   }
@@ -92,7 +99,10 @@ task test {
 
   doLast {
     exec { 
-      environment RUSTFLAGS: "-Dwarnings"
+      if (ci) {
+        environment RUSTFLAGS: "-Dwarnings"
+      }
+
       commandLine cargo('--locked', 'test')
     }
   }
