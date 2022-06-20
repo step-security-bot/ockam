@@ -5,8 +5,11 @@ ARG RUST_VERSION=1.61.0
 ARG ERLANG_VERSION=24.1.7-1~debian~buster
 ARG ELIXIR_VERSION=1.12.2-1~debian~buster
 ARG NODEJS_VERSION=16.13.1
+ARG GOSU_VERSION=1.12
 
 ARG ELIXIR_SHA256=5e8251c5d2557373ecfab986fa481844a2f659597abbfb623f45ad3a1974bb1f
+
+COPY entrypoint.sh /entrypoint.sh
 
 ENV RUSTUP_HOME=/opt/rust/rustup \
     CARGO_HOME=/usr/rust/cargo \
@@ -17,6 +20,7 @@ RUN set -xe; \
     case $(dpkg --print-architecture) in \
       "amd64") \
         echo "Using AMD64"; \
+        GOSU_SHA256="0f25a21cf64e58078057adc78f38705163c1d564a959ff30a891c31917011a54" && GOSU_OS="amd64"; \
         RUSTUP_INIT_SHA256="3dc5ef50861ee18657f9db2eeb7392f9c2a6c95c90ab41e45ab4ca71476b4338"; \
         NODEJS_SHA256="a3721f87cecc0b52b0be8587c20776ac7305db413751db02c55aa2bffac15198" && NODEJS_OS="linux-x64"; \
         ERLANG_SHA256="89c98e177f70593a9f64f3c9962393a51e6730d16071820600d19d4aaa732412" && ERLANG_OS="amd64"; \
@@ -27,6 +31,7 @@ RUN set -xe; \
       "arm64") \
         export CARGO_NET_GIT_FETCH_WITH_CLI=true; \
         echo "Using ARM64"; \
+        GOSU_SHA256="ff6f0b36315d2013d4fcc442cded0e0403d6bb29abc4cd6f94f2bde90bf97a38" && GOSU_OS="arm64"; \
         RUSTUP_INIT_SHA256="32a1532f7cef072a667bac53f1a5542c99666c4071af0c9549795bbdb2069ec1"; \
         NODEJS_SHA256="af1127594d6dae96d3f1d307174daa5084d9c9027eb6fc02548022257f4b0a6a" && NODEJS_OS="linux-arm64"; \
         ERLANG_SHA256="80e95df44cba03f9abefa54ab1452d97b9969a6d164792e827e59a1116377bbd" && ERLANG_OS="arm64"; \
@@ -37,6 +42,7 @@ RUN set -xe; \
       "armhf") \
         export CARGO_NET_GIT_FETCH_WITH_CLI=true; \
         echo "Using ARM"; \
+        GOSU_SHA256="8768127e22410b74edf6bab39e732ff41f260d69b2e30891ade3634e9aa11b81" && GOSU_OS="armhf"; \
         RUSTUP_INIT_SHA256="67777ac3bc17277102f2ed73fd5f14c51f4ca5963adadf7f174adf4ebc38747b"; \
         NODEJS_SHA256="0816ba8750651a49a5b1bf4fa82d0e080bddc00c01c4316948b82a146b2ec18a" && NODEJS_OS="linux-armv7l"; \
         ERLANG_SHA256="8ebbf86d304d7c533269ebd543c24a76a67f9f6459856c036615e71a3ca41c60" && ERLANG_OS="armhf"; \
@@ -120,6 +126,12 @@ RUN set -xe; \
     echo "af986793a515d500ab2d35f8d2aecd656e764504b789b66d7e1a0b727a124c44  jq-${JQ_OS}" | sha256sum -c; \
     mv jq-${JQ_OS} /usr/bin/jq; \
     chmod +x /usr/bin/jq; \
+# Setup gosu
+    curl -o /usr/local/bin/gosu -sSL https://github.com/tianon/gosu/releases/download/${GOSU_VERSION}/gosu-${GOSU_OS}; \
+    echo "${GOSU_SHA256}  /usr/local/bin/gosu" | sha256sum -c -; \
+    chmod +x /usr/local/bin/gosu; \
+# Setup entrypoint
+    chmod +x /entrypoint.sh; \
 # Cleanup
     apt-get clean; \
     rm -rf /var/lib/apt/lists/*
@@ -129,4 +141,9 @@ ENV PATH="${JAVA_HOME}/bin:${RUSTUP_HOME}/bin:${CARGO_HOME}/bin:${CMAKE_HOME}/bi
     AS=/usr/bin/as \
     CC=/usr/local/bin/gcc \
     CPP=/usr/local/bin/cpp \
-    CXX=/usr/local/bin/g++
+    CXX=/usr/local/bin/g++ \
+    LANG=en_US.UTF-8
+
+WORKDIR /work
+
+ENTRYPOINT ["/entrypoint.sh"]
