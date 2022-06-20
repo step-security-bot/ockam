@@ -1,9 +1,160 @@
 # Changelog
+All notable changes to this project will be documented in this file.
 
-All notable changes to this crate will be documented in this file.
-
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## 0.46.0 - 2022-06-06
+
+### Changed
+
+- Rename new_context to new_detached
+- Updated dependencies
+
+## 0.45.0 - 2022-05-23
+
+### Changed
+
+- Return socket address when starting a transport listener
+- Code block and imports
+- Updated dependencies
+
+### Fixed
+
+- Fix flaky transport tests
+
+## 0.44.0 - 2022-05-09
+
+### Changed
+
+- Updated dependencies
+
+## 0.43.0 - 2022-05-05
+
+### Changed
+
+- Updated dependencies
+
+## 0.42.0 - 2022-04-25
+
+### Added
+
+- Add documentation for all public functions
+- Add examples to transport.rs
+
+### Changed
+
+- Initialize stream on worker's initialize method
+- Updated dependencies
+
+### Removed
+
+- Remove unnecessary error conversion
+
+## 0.41.0 - 2022-04-19
+
+### Changed
+
+- Clean up ockam_core import paths
+- Update broken tests
+- Rename error2 to error
+- Updated dependencies
+
+### Fixed
+
+- Errors: fix ockam_transport_websocket
+- Fix various clippy and rustfmt lints
+
+### Removed
+
+- Remove thiserror as it does not support no_std
+
+## 0.40.0 - 2022-04-11
+
+### Changed
+
+- Get rid of common `RouterMessage` in favor of transport-specific structs (ble, ws)
+- Implement miniature `ockam` command for demo
+- Updated dependencies
+
+### Fixed
+
+- Insert a temporary mechanism to improve error messages
+- Fix clippy warnings
+
+## 0.39.0 - 2022-04-04
+
+### Changed
+
+- Updated dependencies
+
+## 0.38.0 - 2022-03-28
+
+### Added
+
+- Add basic test for ws transport
+
+### Changed
+
+- Ws transport
+- Updated dependencies
+
+## 0.35.0 - 2022-02-08
+
+### Changed
+
+- Update crate edition to 2021
+
+## 0.32.0 - 2022-01-10
+
+### Changed
+
+- Improve formatting of `Cargo.toml`s  and add `rust-version` 1.56.0
+
+### Removed
+
+- Delete the ockam_node_no_std crate
+
+## 0.31.0 - 2021-12-13
+
+### Changed
+
+- Updated dependencies
+
+## 0.30.0 - 2021-12-06
+
+### Changed
+
+- Make transport errors start from 1
+
+### Removed
+
+- Remove symlinks to `DEVELOP.md` and `LICENSE`
+
+## v0.29.0 - 2021-11-22
+
+
+### Changed
+
+- Deny warnings in ci, not local development
+
+
+## v0.28.0 - 2021-11-15
+### Changed
+- change `WebSocket` address type constant from 2 to 3
+- Dependencies updated
+
+## v0.27.0 - 2021-11-08
+### Changed
+- Dependencies updated
+
+## v0.26.0 - 2021-11-01
+### Changed
+- Dependencies updated
+
+## v0.25.0 - 2021-10-26
+### Changed
+- Dependencies updated
 
 ## v0.24.0 - 2021-10-25
 ### Changed

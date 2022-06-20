@@ -1,65 +1,129 @@
+import java.nio.file.Paths;
 
-plugins {
-  id 'network.ockam.gradle.commands' version '1.0.0'
-}
+ext {
+  mode = project.hasProperty('mode') ? mode.toLowerCase() : 'dev'
+  mode = (mode == 'release') ? 'prod' : mode
+  mode = (mode == 'debug') ? 'dev' : mode
 
-// collect list of all directories in ockam/
-def apps = []
+  apps = ['ockam_vault_software', 'ockam', 'ockam_services', 'ockam_kafka', 'ockam_cloud_node'].collect { app ->
+    [name: app, path: Paths.get(projectDir.toPath().toString(), 'ockam', app)]
+  }
 
-def ockamDir = java.nio.file.Paths.get(projectDir.toPath().toString(), 'ockam').toFile()
-ockamDir.eachFile(groovy.io.FileType.DIRECTORIES) {
-  apps << projectDir.toPath().relativize(it.toPath()).toFile()
-}
+  mix = { argument ->
+    command = ['mix']
+    command.addAll(argument.split())
 
-commands {
-  group = 'ockam'
+    println "[Gradle] Command: ${command.join(' ')}"
+    return command
+  }
 
-  rootDir = '../..'
+  ordered = { taskDeps ->
+    for (int i = 0; i < taskDeps.size() - 1; i++) {
+      def current = project.tasks.named(taskDeps[i]).get()
+      def next = project.tasks.named(taskDeps[i + 1]).get()
+      next.mustRunAfter(current)
+    }
 
-  list = [
-    build: [
-      'mix local.hex --force --if-missing',
-      'mix local.rebar --force',
-      'mix deps.get',
-      'mix compile'
-    ],
-    test: [
-      'mix local.hex --force --if-missing',
-      'mix local.rebar --force',
-      'mix deps.get',
-      'mix test'
-    ],
-    clean: [
-      'mix local.hex --force --if-missing',
-      'mix local.rebar --force',
-      'mix clean'
-    ],
-    lint: [
-      'mix local.hex --force --if-missing',
-      'mix local.rebar --force',
-      'mix deps.get',
-      'mix lint'
-    ],
-    dialyze: [
-      'mix local.hex --force --if-missing',
-      'mix local.rebar --force',
-      'mix deps.get',
-      'mix dialyzer'
-    ],
-    veryClean: [
-      'rm -rf _build deps'
-    ]
-  ]
-
-  directories = apps
-}
-
-tasks.whenTaskAdded { task ->
-  def isVeryClean = task.name.contains('veryClean')
-  def isCleanTask = isVeryClean || task.name.contains('clean')
-  if(!isCleanTask) {
-    task.dependsOn(gradle.includedBuild('rust').task(':buildRelease_ockam_ockam_ffi'))
-  } else if (isVeryClean) {
-    task.dependsOn(gradle.includedBuild('rust').task(':clean_ockam_ockam_ffi'))
+    return taskDeps
   }
 }
+
+task rustBuild {
+  dependsOn gradle.includedBuild('rust').task(':build')
+}
+
+task checkLocalHexAndRebar {
+  doLast {
+    exec { commandLine mix('local.hex --force --if-missing') }
+    exec { commandLine mix('local.rebar --force') }
+  }
+}
+
+// Define lint tasks
+
+def taskDeps = ['checkLocalHexAndRebar']
+apps.each { app ->
+  task "lint_${app.name}" {
+    dependsOn checkLocalHexAndRebar
+    doLast {
+      exec {
+        commandLine mix('do deps.get, lint')
+        workingDir app.path
+      }
+    }
+  }
+  taskDeps.add("lint_${app.name}")
+}
+task lint { dependsOn ordered(taskDeps) }
+
+// Define build tasks
+
+taskDeps = ['checkLocalHexAndRebar']
+apps.each { app ->
+  task "build_${app.name}" {
+    dependsOn checkLocalHexAndRebar
+    doLast {
+      exec {
+        commandLine mix('do deps.get, compile')
+        workingDir app.path
+        environment MIX_ENV: mode
+      }
+    }
+  }
+  taskDeps.add("build_${app.name}")
+}
+task build { dependsOn ordered(taskDeps) }
+
+// Define test tasks
+
+taskDeps = ['checkLocalHexAndRebar']
+apps.each { app ->
+  task "test_${app.name}" {
+    if(app.name == 'ockam_vault_software') {
+      dependsOn rustBuild
+    }
+    dependsOn checkLocalHexAndRebar
+    doLast {
+      exec {
+        commandLine mix('do deps.get, test')
+        workingDir app.path
+        environment MIX_ENV: 'test'
+      }
+    }
+  }
+  taskDeps.add("test_${app.name}")
+}
+task test { dependsOn ordered(taskDeps) }
+
+// Define clean tasks
+
+taskDeps = []
+apps.each { app ->
+  task "clean_${app.name}" {
+    dependsOn checkLocalHexAndRebar
+    doLast {
+      exec {
+        commandLine mix('clean')
+        workingDir app.path
+      }
+    }
+  }
+  taskDeps.add("clean_${app.name}")
+}
+task clean { dependsOn taskDeps }
+
+// Define veryClean tasks
+
+taskDeps = []
+apps.each { app ->
+  task "veryClean_${app.name}" {
+    dependsOn checkLocalHexAndRebar
+    doLast {
+      println "[Gradle] Very Clean: ${app}"
+      delete Paths.get(app.path.toString(), '_build')
+      delete Paths.get(app.path.toString(), 'deps')
+    }
+  }
+  taskDeps.add("veryClean_${app.name}")
+}
+task veryClean { dependsOn taskDeps }

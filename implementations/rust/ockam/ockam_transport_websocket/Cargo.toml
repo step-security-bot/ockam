@@ -1,39 +1,66 @@
 [package]
 name = "ockam_transport_websocket"
-version = "0.24.0"
+version = "0.47.0"
 authors = ["Ockam Developers"]
-edition = "2018"
+edition = "2021"
 license = "Apache-2.0"
-homepage = "https://github.com/ockam-network/ockam"
-repository = "https://github.com/ockam-network/ockam/implementations/rust/ockam/ockam_transport_websocket"
+homepage = "https://github.com/build-trust/ockam"
+repository = "https://github.com/build-trust/ockam/implementations/rust/ockam/ockam_transport_websocket"
 readme = "README.md"
-keywords = ["ockam", "websocket", "ockam-transport"]
-categories = ["network-programming", "asynchronous"]
+keywords = ["ockam", "crypto", "network", "networking", "websocket"]
+categories = [
+    "cryptography",
+    "asynchronous",
+    "authentication",
+    "network-programming",
+    "embedded",
+]
 description = """
 WebSocket Transport for the Ockam Routing Protocol.
 """
-exclude = [
-    "DEVELOP.md",
-    "LICENSE"
-]
+publish = true
+rust-version = "1.56.0"
 
 [features]
 default = ["std"]
-std = []
-alloc = []
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# Feature (enabled by default): "std" enables functionality expected to
+# be available on a standard platform.
+std = [
+    "ockam_core/std",
+    "ockam_node/std",
+    "ockam_transport_core/std",
+    "tokio",
+    "tokio-tungstenite",
+    "alloc"
+]
+
+# Feature: "alloc" enables support for heap allocation (implied by `feature = "std"`).
+alloc = [
+    "ockam_core/alloc",
+    "ockam_node/alloc",
+    "ockam_transport_core/alloc",
+    "serde/alloc"
+]
 
 [dependencies]
-futures-channel = "0.3"
-futures-util = { version = "0.3", default-features = false, features = ["tokio-io"] }
-ockam_core = { path = "../ockam_core", version = "0.36.0"         }
-ockam_node = { path = "../ockam_node", version = "0.34.0"         }
-ockam_transport_core = { path = "../ockam_transport_core", version = "0.10.0"         }
-tokio = { version = "1.8", features = ["rt-multi-thread", "sync", "net", "macros", "time"] }
-tokio-tungstenite = "0.15"
+futures-util = { version = "0.3", default-features = false, features = [
+    "tokio-io",
+] }
+ockam_core = { path = "../ockam_core", version = "^0.56.0", default_features = false }
+ockam_node = { path = "../ockam_node", version = "^0.58.0", default_features = false }
+ockam_transport_core = { path = "../ockam_transport_core", version = "^0.29.0", default_features = false }
+tokio = { version = "1.8", default-features = false, optional = true, features = [
+    "rt-multi-thread",
+    "sync",
+    "net",
+    "macros",
+    "time",
+    "io-std",
+] }
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+tokio-tungstenite = { version = "0.17", default-features = false, optional = true , features = ["connect"] }
 tracing = { version = "0.1", default-features = false }
 
 [dev-dependencies]
-ockam = { path = "../ockam", default-features = false, features = ["std"] }
-tokio = { version = "1.8", features = ["io-std"] }
+ockam_macros = { path = "../ockam_macros", version = "^0.16.0" }

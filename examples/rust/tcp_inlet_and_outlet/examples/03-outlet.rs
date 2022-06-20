@@ -1,5 +1,5 @@
-use ockam::{Context, Result, TcpTransport};
-use ockam::{Entity, TrustEveryonePolicy, Vault};
+use ockam::identity::{Identity, TrustEveryonePolicy};
+use ockam::{vault::Vault, Context, Result, TcpTransport};
 
 #[ockam::node]
 async fn main(ctx: Context) -> Result<()> {
@@ -8,17 +8,17 @@ async fn main(ctx: Context) -> Result<()> {
 
     // Create:
     //   1. A Vault to store our cryptographic keys
-    //   2. An Entity to represent this Node
+    //   2. An Identity to represent this Node
     //   3. A Secure Channel Listener at Worker address - secure_channel_listener
     //      that will wait for requests to start an Authenticated Key Exchange.
 
-    let vault = Vault::create(&ctx).await?;
-    let mut e = Entity::create(&ctx, &vault).await?;
+    let vault = Vault::create();
+    let e = Identity::create(&ctx, &vault).await?;
     e.create_secure_channel_listener("secure_channel_listener", TrustEveryonePolicy)
         .await?;
 
     // Expect first command line argument to be the TCP address of a target TCP server.
-    // For example: 127.0.0.1:5000
+    // For example: 127.0.0.1:4002
     //
     // Create a TCP Transport Outlet - at Ockam Worker address "outlet" -
     // that will connect, as a TCP client, to the target TCP server.

@@ -40,7 +40,6 @@ _granular authorization decisions about all incoming information and commands._
 
 * End-to-end encrypted, mutually authenticated _secure channels_.
 * Key establishment, rotation, and revocation - _for fleets, at scale_.
-* Identity profiles isolated by _privacy contexts_.
 * Attribute-based Access Control - credentials with _selective disclosure_.
 * Add-ons for a variety of operating environments, transport protocols, and _cryptographic hardware_.
 * Libraries for multiple languages - _Rust, Elixir_ (more on the roadmap).
@@ -71,51 +70,55 @@ end-to-end protected channels over multi-hop, multi-protocol transport routes:
     ```
 
     If the above instructions don't work on your machine, please
-    [post a question](https://github.com/ockam-network/ockam/discussions/1642),
+    [post a question](https://github.com/build-trust/ockam/discussions/1642),
     we would love to help.
 
 3. Create a file at `examples/hello.rs` and copy the below code snippet to it.
 
-    ```rust
-    // examples/hello.rs
+```rust
+// examples/hello.rs
+use ockam::{
+    identity::{Identity, TrustEveryonePolicy},
+    route,
+    vault::Vault,
+    Context, Result,
+};
 
-    use ockam::{route, Context, Entity, Result, TrustEveryonePolicy, Vault};
+#[ockam::node]
+async fn main(mut ctx: Context) -> Result<()> {
+    // Create a Vault to safely store secret keys for Alice and Bob.
+    let vault = Vault::create();
 
-    #[ockam::node]
-    async fn main(mut ctx: Context) -> Result<()> {
-        // Create a Vault to safely store secret keys for Alice and Bob.
-        let vault = Vault::create(&ctx).await?;
+    // Create an Identity to represent Bob.
+    let bob = Identity::create(&ctx, &vault).await?;
 
-        // Create an Entity to represent Bob.
-        let mut bob = Entity::create(&ctx, &vault).await?;
+    // Create a secure channel listener for Bob that will wait for requests to
+    // initiate an Authenticated Key Exchange.
+    bob.create_secure_channel_listener("bob", TrustEveryonePolicy).await?;
 
-        // Create a secure channel listener for Bob that will wait for requests to
-        // initiate an Authenticated Key Exchange.
-        bob.create_secure_channel_listener("bob", TrustEveryonePolicy).await?;
+    // Create an entity to represent Alice.
+    let alice = Identity::create(&ctx, &vault).await?;
 
-        // Create an entity to represent Alice.
-        let mut alice = Entity::create(&ctx, &vault).await?;
+    // As Alice, connect to Bob's secure channel listener and perform an
+    // Authenticated Key Exchange to establish an encrypted secure channel with Bob.
+    let channel = alice.create_secure_channel("bob", TrustEveryonePolicy).await?;
 
-        // As Alice, connect to Bob's secure channel listener and perform an
-        // Authenticated Key Exchange to establish an encrypted secure channel with Bob.
-        let channel = alice.create_secure_channel("bob", TrustEveryonePolicy).await?;
+    // Send a message, ** THROUGH ** the secure channel,
+    // to the "app" worker on the other side.
+    //
+    // This message will automatically get encrypted when it enters the channel
+    // and decrypted just before it exits the channel.
+    ctx.send(route![channel, "app"], "Hello Ockam!".to_string()).await?;
 
-        // Send a message, ** THROUGH ** the secure channel,
-        // to the "app" worker on the other side.
-        //
-        // This message will automatically get encrypted when it enters the channel
-        // and decrypted just before it exits the channel.
-        ctx.send(route![channel, "app"], "Hello Ockam!".to_string()).await?;
+    // Wait to receive a message for the "app" worker and print it.
+    let message = ctx.receive::<String>().await?;
+    println!("App Received: {}", message); // should print "Hello Ockam!"
 
-        // Wait to receive a message for the "app" worker and print it.
-        let message = ctx.receive::<String>().await?;
-        println!("App Received: {}", message); // should print "Hello Ockam!"
+    // Stop all workers, stop the node, cleanup and return.
+    ctx.stop().await
+}
 
-        // Stop all workers, stop the node, cleanup and return.
-        ctx.stop().await
-    }
-
-    ```
+```
 
 4. Run the example
 
@@ -184,26 +187,3 @@ that make up Ockam. We dive into Node, Workers, Routing, Transport, Secure Chann
 ## License
 
 The code in this repository is licensed under the terms of the [Apache License 2.0](LICENSE).
-
-<hr>
-
-<p>
-<a href="https://github.com/ockam-network/ockam/actions?query=workflow%3A%22Continuous+Integration%22">
-<img alt="Continuous Integration"
-  src="https://github.com/ockam-network/ockam/workflows/Continuous%20Integration/badge.svg">
-</a>
-
-<a href="https://www.ockam.io/learn/how-to-guides/high-performance-team/conduct/">
-<img alt="Contributor Covenant"
-  src="https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg">
-</a>
-
-<hr>
-
-<div align="center">
-:sparkles:
-<a href="./documentation/use-cases/end-to-end-encryption-with-rust#readme">
-Hands-on Introduction: Build end-to-end encrypted, mutually-authenticated, secure messaging in Rust
-</a>
-:sparkles:
-</div>

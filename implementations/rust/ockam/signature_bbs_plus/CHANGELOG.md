@@ -1,9 +1,50 @@
 # Changelog
+All notable changes to this project will be documented in this file.
 
-All notable changes to this crate will be documented in this file.
-
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## 0.37.0 - 2022-05-09
+
+### Changed
+
+- Updated dependencies
+
+## 0.36.0 - 2022-02-08
+
+### Changed
+
+- Update crate edition to 2021
+
+## 0.33.0 - 2022-01-10
+
+### Changed
+
+- Improve formatting of `Cargo.toml`s  and add `rust-version` 1.56.0
+
+## 0.32.0 - 2021-12-13
+
+### Changed
+
+- Change all crates to `-dev` version
+
+## 0.31.0 - 2021-12-06
+
+### Removed
+
+- Remove symlinks to `DEVELOP.md` and `LICENSE`
+
+## v0.30.0 - 2021-11-22
+
+
+### Changed
+
+- Deny warnings in ci, not local development
+
+
+## v0.29.0 - 2021-11-01
+### Changed
+- Dependencies updated
 
 ## v0.28.0 - 2021-10-25
 ### Changed

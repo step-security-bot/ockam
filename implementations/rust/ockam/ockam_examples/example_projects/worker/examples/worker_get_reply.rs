@@ -1,9 +1,9 @@
-use ockam::{Context, Result, Routed, Worker};
+use ockam::{Context, Message, Result, Routed, Worker};
 use serde::{Deserialize, Serialize};
 
 struct Square;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Message)]
 struct Num(usize);
 
 #[ockam::worker]
@@ -18,7 +18,7 @@ impl Worker for Square {
 }
 
 fn main() {
-    let (mut app, mut exe) = ockam::start_node();
+    let (mut app, mut exe) = ockam::NodeBuilder::without_access_control().build();
 
     exe.execute(async move {
         app.start_worker("io.ockam.square", Square).await.unwrap();

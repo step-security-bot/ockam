@@ -1,9 +1,174 @@
 # Changelog
+All notable changes to this project will be documented in this file.
 
-All notable changes to this crate will be documented in this file.
-
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## unreleased
+
+### Changed
+
+- Move ockam_vault service to ockam_api
+
+## 0.50.0 - 2022-06-06
+
+### Added
+
+- Add simple `Vault` service
+- Add simple vault service test
+
+### Changed
+
+- Switch `Vault` to `String` `KeyId` instead of integer `Secret`
+- Implement new `Vault` serialization
+- Improve file handling in `Vault` storage
+- Updated dependencies
+
+### Removed
+
+- Remove `AsRef` from `PublicKey` to avoid confusion
+
+## 0.49.0 - 2022-05-23
+
+### Changed
+
+- Updated dependencies
+
+## 0.48.0 - 2022-05-09
+
+### Changed
+
+- Updated dependencies
+
+## 0.47.0 - 2022-05-05
+
+### Changed
+
+- Updated dependencies
+
+## 0.46.0 - 2022-04-25
+
+### Changed
+
+- Updated dependencies
+
+## 0.45.0 - 2022-04-19
+
+### Changed
+
+- Clean up ockam_core import paths
+- Run rustfmt
+- Rename error2 to error
+- Updated dependencies
+
+### Fixed
+
+- Errors: fix ockam_vault
+- Fix various clippy and rustfmt lints
+
+### Removed
+
+- Remove thiserror as it does not support no_std
+
+## 0.44.0 - 2022-04-11
+
+### Changed
+
+- Don't re-export `hex` or `hashbrown` from `ockam_core`
+- Implement miniature `ockam` command for demo
+- Vault updates
+- Updated dependencies
+
+### Fixed
+
+- Insert a temporary mechanism to improve error messages
+
+## 0.43.0 - 2022-03-28
+
+### Changed
+
+- Friendlify api for `ockam_core::vault::key_id_vault`
+- Updated dependencies
+
+## 0.42.0 - 2022-03-21
+
+### Fixed
+
+- Vault_test macro
+- Vault_test_sync macro
+
+## 0.40.0 - 2022-02-08
+
+### Changed
+
+- Update crate edition to 2021
+
+## 0.37.0 - 2022-01-10
+
+### Added
+
+- Add no_main arg support to ockam::node macro
+
+### Changed
+
+- Improve formatting of `Cargo.toml`s  and add `rust-version` 1.56.0
+
+### Fixed
+
+- Fix credentials build failure
+
+## 0.36.0 - 2021-12-13
+
+### Added
+
+- Add ockam_core/bls feature and small fixes
+
+### Changed
+
+- Vault updates
+- Change uses of `ockam_vault_core::Foo` to use `ockam_core::vault::Foo` across crates
+
+## 0.35.0 - 2021-12-06
+
+### Changed
+
+- Merge macro crates
+
+### Fixed
+
+- Import correct ed25519 signature trait
+
+### Removed
+
+- Remove symlinks to `DEVELOP.md` and `LICENSE`
+- Remove need for separate macro crates
+
+## v0.34.0 - 2021-11-22
+
+
+### Changed
+
+- Deny warnings in ci, not local development
+
+### Fixed
+
+- Allow deprecated use of `Signature::new`
+- Switch from `Signature::new` to `Signature::from_bytes`
+- Prefix xeddsa sign and verify methods with `xeddsa_`
+
+
+## v0.33.0 - 2021-11-15
+### Changed
+- Dependencies updated
+
+## v0.32.0 - 2021-11-08
+### Changed
+- Dependencies updated
+
+## v0.31.0 - 2021-11-01
+### Changed
+- explicitly derive message trait
+- Dependencies updated
 
 ## v0.30.0 - 2021-10-25
 ### Changed

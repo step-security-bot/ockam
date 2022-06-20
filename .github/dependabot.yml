@@ -2,6 +2,39 @@
 version: 2
 updates:
 
+  # Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    commit-message:
+      prefix: "ci:"
+    schedule:
+      interval: "daily"
+    labels:
+      - "Type: Dependencies"
+      - "Component: CI/CD"
+
+  # Maintain dependencies for rust crates
+  - package-ecosystem: "cargo"
+    directory: "/"
+    commit-message:
+      prefix: "build:"
+    schedule:
+      interval: "daily"
+    labels:
+      - "Type: Dependencies"
+      - "Implementation: Rust"
+
+  # Maintain dependencies for typescript packages
+  - package-ecosystem: "npm"
+    directory: "/implementation/typescript"
+    commit-message:
+      prefix: "build:"
+    schedule:
+      interval: "daily"
+    labels:
+      - "Type: Dependencies"
+      - "Implementation: Typescript"
+
   # Maintain dependencies for elixir ockam application
   - package-ecosystem: "mix"
     directory: "/implementations/elixir/ockam/ockam"
@@ -9,29 +42,42 @@ updates:
       prefix: "build:"
     schedule:
       interval: "daily"
+    labels:
+      - "Type: Dependencies"
+      - "Implementation: Elixir"
 
-  # Maintain dependencies for elixir ockam_hub application
+  # Maintain dependencies for elixir ockam_services application
   - package-ecosystem: "mix"
-    directory: "/implementations/elixir/ockam/ockam_hub"
+    directory: "/implementations/elixir/ockam/ockam_services"
     commit-message:
       prefix: "build:"
     schedule:
       interval: "daily"
+    labels:
+      - "Type: Dependencies"
+      - "Implementation: Elixir"
 
+  # Maintain dependencies for elixir ockam_cloud_node application
+  - package-ecosystem: "mix"
+    directory: "/implementations/elixir/ockam/ockam_cloud_node"
+    commit-message:
+      prefix: "build:"
+    schedule:
+      interval: "daily"
+    labels:
+      - "Type: Dependencies"
+      - "Implementation: Elixir"
+
+  # Maintain dependencies for elixir ockam_kafka application
   - package-ecosystem: "mix"
     directory: "/implementations/elixir/ockam/ockam_kafka"
     commit-message:
       prefix: "build:"
     schedule:
       interval: "daily"
-
-  # Maintain dependencies for elixir ockam_node_web application
-  # - package-ecosystem: "mix"
-  #   directory: "/implementations/elixir/ockam/ockam_node_web"
-  #   commit-message:
-  #     prefix: "build:"
-  #   schedule:
-  #     interval: "daily"
+    labels:
+      - "Type: Dependencies"
+      - "Implementation: Elixir"
 
   # Maintain dependencies for elixir ockam_vault_software application
   - package-ecosystem: "mix"
@@ -40,75 +86,6 @@ updates:
       prefix: "build:"
     schedule:
       interval: "daily"
-
-  # Maintain dependencies for rust ockam crate
-  - package-ecosystem: "cargo"
-    directory: "/implementations/rust/ockam/ockam"
-    commit-message:
-      prefix: "build:"
-    schedule:
-      interval: "daily"
-
-  # Maintain dependencies for rust ockam_core crate
-  - package-ecosystem: "cargo"
-    directory: "/implementations/rust/ockam/ockam_core"
-    commit-message:
-      prefix: "build:"
-    schedule:
-      interval: "daily"
-
-  # Maintain dependencies for rust ockam_ffi crate
-  - package-ecosystem: "cargo"
-    directory: "/implementations/rust/ockam/ockam_ffi"
-    commit-message:
-      prefix: "build:"
-    schedule:
-      interval: "daily"
-
-  # Maintain dependencies for rust ockam_node crate
-  - package-ecosystem: "cargo"
-    directory: "/implementations/rust/ockam/ockam_node"
-    commit-message:
-      prefix: "build:"
-    schedule:
-      interval: "daily"
-
-  # Maintain dependencies for rust ockam_node_attribute crate
-  - package-ecosystem: "cargo"
-    directory: "/implementations/rust/ockam/ockam_node_attribute"
-    commit-message:
-      prefix: "build:"
-    schedule:
-      interval: "daily"
-
-  # Maintain dependencies for rust ockam_node_no_std crate
-  - package-ecosystem: "cargo"
-    directory: "/implementations/rust/ockam/ockam_node_no_std"
-    commit-message:
-      prefix: "build:"
-    schedule:
-      interval: "daily"
-
-  # Maintain dependencies for rust ockam_node_tcp crate
-  - package-ecosystem: "cargo"
-    directory: "/implementations/rust/ockam/ockam_node_tcp"
-    commit-message:
-      prefix: "build:"
-    schedule:
-      interval: "daily"
-
-  # Maintain dependencies for rust ockam_vault crate
-  - package-ecosystem: "cargo"
-    directory: "/implementations/rust/ockam/ockam_vault"
-    commit-message:
-      prefix: "build:"
-    schedule:
-      interval: "daily"
-
-  # Maintain dependencies for rust ockam_vault_core crate
-  - package-ecosystem: "cargo"
-    directory: "/implementations/rust/ockam/ockam_vault_core"
-    commit-message:
-      prefix: "build:"
-    schedule:
-      interval: "daily"
+    labels:
+      - "Type: Dependencies"
+      - "Implementation: Elixir"

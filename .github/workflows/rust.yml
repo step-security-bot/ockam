@@ -1,0 +1,233 @@
+name: Rust
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: SHA to test workflow
+  pull_request:
+    paths:
+      - ".github/workflows/rust.yml"
+      - "**.rs"
+      - "**.toml"
+      - "**/Cargo.lock"
+      - "**.gradle"
+      - "tools/gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - ".github/actions/**"
+  push:
+    paths:
+      - ".github/workflows/rust.yml"
+      - "**.rs"
+      - "**.toml"
+      - "**/Cargo.lock"
+      - "**.gradle"
+      - "tools/gradle/**"
+      - "gradlew"
+      - "gradlew.bat"
+      - ".github/actions/**"
+  schedule:
+    - cron: "0 1 * * *"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint_cargo_fmt_check:
+    name: Rust - Lint Formatting
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - uses: ./.github/actions/gradle_cache
+      - run: cd implementations/rust && ../../gradlew lint_cargo_fmt_check
+
+  lint_cargo_clippy:
+    name: Rust - Lint with Cargo Clippy
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/cargo_home_cache
+      - uses: ./.github/actions/cargo_target_dir_cache
+      - run: cd implementations/rust && ../../gradlew lint_cargo_clippy
+      - uses: ./.github/actions/cargo_target_dir_pre_cache
+
+  lint_cargo_deny:
+    name: Rust - Lint with Cargo Deny
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - uses: ./.github/actions/gradle_cache
+      - run: cd implementations/rust && ../../gradlew lint_cargo_deny
+
+  build_docs:
+    name: Rust - Build Documentation
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/cargo_home_cache
+      - uses: ./.github/actions/cargo_target_dir_cache
+      - run: cd implementations/rust && ../../gradlew build_docs
+      - uses: ./.github/actions/cargo_target_dir_pre_cache
+
+  build:
+    name: Rust - Build
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/cargo_home_cache
+      - uses: ./.github/actions/cargo_target_dir_cache
+      - run: cd implementations/rust && ../../gradlew build
+      - uses: ./.github/actions/cargo_target_dir_pre_cache
+
+  build_examples:
+    name: Rust - Build Examples
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/cargo_home_cache
+      - uses: ./.github/actions/cargo_target_dir_cache
+      - run: cd implementations/rust && ../../gradlew build_examples
+      - uses: ./.github/actions/cargo_target_dir_pre_cache
+
+  test:
+    name: Rust - Test
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    services:
+      ockam_cloud:
+        image: ghcr.io/build-trust/ockam-cloud-node@sha256:518314876a5b07c263b88995792335c4426d940c10e5e638a60e66776d86cff5
+    env:
+      CLOUD_ADDRESS: ockam_cloud:4000
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/cargo_home_cache
+      - uses: ./.github/actions/cargo_target_dir_cache
+      - run: cd implementations/rust && ../../gradlew test
+      - uses: ./.github/actions/cargo_target_dir_pre_cache
+
+  check_no_std:
+    name: Rust - Check Features - no_std alloc software_vault
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/cargo_home_cache
+      - uses: ./.github/actions/cargo_target_dir_cache
+      # TODO: re-enable features after no_std has an unbounded channel.
+      - run: |
+          cd implementations/rust/ockam/ockam
+          RUSTFLAGS='--cfg tokio_unstable -Dwarnings' cargo check
+      - uses: ./.github/actions/cargo_target_dir_pre_cache
+
+  check_cargo_update:
+    name: Rust - Check Cargo Update
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/cargo_home_cache
+      - uses: ./.github/actions/cargo_target_dir_cache
+      - run: |
+          cd examples/rust/get_started
+          rm -rf Cargo.lock
+          cargo update
+          RUSTFLAGS='--cfg tokio_unstable -Dwarnings' cargo check
+      - uses: ./.github/actions/cargo_target_dir_pre_cache
+
+  check_nightly:
+    name: Rust - Nightly Check
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/cargo_home_cache
+      - uses: ./.github/actions/cargo_target_dir_cache
+      - run: rustup default nightly
+      - run: rustup update nightly
+      - run: RUSTFLAGS='--cfg tokio_unstable -Dwarnings' cargo check
+      - uses: ./.github/actions/cargo_target_dir_pre_cache
+
+  build_nightly:
+    name: Rust - Nightly Build
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/cargo_home_cache
+      - uses: ./.github/actions/cargo_target_dir_cache
+      - run: rustup default nightly
+      - run: rustup update nightly
+      - run: cd implementations/rust && ../../gradlew build
+      - uses: ./.github/actions/cargo_target_dir_pre_cache
+
+  test_nightly:
+    name: Rust - Nightly Test
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+        with:
+          ref: ${{ github.event.inputs.commit_sha }}
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/cargo_home_cache
+      - uses: ./.github/actions/cargo_target_dir_cache
+      - run: rustup default nightly
+      - run: rustup update nightly
+      - run: cd implementations/rust && ../../gradlew test
+        env:
+          NIGHTLY_CI: 1
+      - uses: ./.github/actions/cargo_target_dir_pre_cache

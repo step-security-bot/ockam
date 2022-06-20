@@ -1,0 +1,223 @@
+;;; NOTE: Many types have at key 0 a type identifier (aka type tag). This is
+;;; a randomly generated number that helps in tests to ensure that the CBOR
+;;; item is the type expected.
+
+;;; Request Header ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+request = {
+    ?0: 7586022,
+     1: id,
+     2: path,
+     3: method,
+     4: has_body
+}
+
+id       = uint
+re       = uint
+path     = text
+has_body = bool
+
+method = 0 ;; GET
+       / 1 ;; POST
+       / 2 ;; PUT
+       / 3 ;; DELETE
+       / 4 ;; PATCH
+
+;;; Response Header ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+response = {
+    ?0: 9750358,
+     1: id,
+     2: re,
+     3: status,
+     4: has_body
+}
+
+status = 200 ;; OK
+       / 400 ;; Bad request
+       / 404 ;; Not found
+       / 405 ;; Method not allowed
+       / 500 ;; Internal server error
+       / 501 ;; Not implemented
+
+;;; Error ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+error = {
+    ?0: 5359172,
+     1: path,
+    ?2: method,
+    ?3: message
+}
+
+message = text
+
+;;; Authenticated attributes ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+attributes = {
+    ?0: 4724285,
+     1: {+ text => bytes }
+}
+
+attribute = {
+    ?0: 6844116,
+     1: value
+}
+
+value = bytes
+
+;;; Space ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+space = {
+   ?0: 7574645
+    1: space_id
+    2: space_name
+}
+
+create_space = {
+   ?0: 3888657,
+    1: space_name
+}
+
+space_id   = text
+space_name = text
+
+;;; Projects ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+project = {
+   ?0: 9056532,
+    1: project_id,
+    2: project_name,
+    3: [+ service_name],
+    4: access_route
+}
+
+create_project = {
+    ?0: 8669570,
+    1: project_name,
+    2: [+ service_name]
+}
+
+project_id   = text
+project_name = text
+service_name = text
+access_route = bytes
+
+identity_create_response = {
+    ?0: 3500430,
+     1: identity,
+     2: identity_id
+}
+
+identity_contact_request = {
+    ?0: 9274303,
+     1: identity
+}
+
+identity_contact_response = {
+    ?0: 3682917,
+     1: contact
+}
+
+identity_verify_and_add_contact_request = {
+    ?0: 3396927,
+     1: identity,
+     2: contact
+}
+
+identity_verify_and_add_contact_response = {
+    ?0: 7946005,
+     1: identity,
+     2: contact_id
+}
+
+identity_create_auth_proof_request = {
+    ?0: 1019956,
+     1: identity,
+     2: identity_state
+}
+
+identity_create_auth_proof_response = {
+    ?0: 2592832,
+     1: identity_proof
+}
+
+identity_verify_auth_proof_request = {
+    ?0: 7550780,
+     1: identity,
+     2: peer_identity_id,
+     3: identity_state,
+     4: identity_proof
+}
+
+identity_verify_auth_proof_response = {
+    ?0: 1236745,
+     1: verified
+}
+
+identity         = bytes
+identity_id      = text
+contact          = bytes
+identity_state   = bytes
+identity_proof   = bytes
+peer_identity_id = text
+verified         = bool
+contact_id       = text
+
+
+;;; Enroll ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+request_enrollment = {
+    ?0: 5136510,
+     1: identity_id,
+     2: token
+ }
+identity_id     = text
+token        = text
+
+
+token_attribute = {
+    ?0: 8463780,
+     1: attr_name,
+     2: attr_value
+}
+
+attr_value   = text
+attr_name    = text
+
+;;; Invitation ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+invitation_scope = 0 ;; Space
+                 / 1 ;; Project
+
+invitation_state = 0 ;; Pending
+                / 1 ;; Accepted
+                / 2 ;; Rejected
+
+create_invitation = {
+    ?0: 1886440,
+     1: identity_id,
+     2: invitee,
+     3: scope,
+     4: space_id,
+    ?5: project_id
+}
+
+invitee = text
+scope = invitation_scope
+
+invitation = {
+    ?0: 7088378,
+     1: invitation_id,
+     3: inviter,
+     4: invitee,
+     5: scope,
+     6: state,
+     7: space_id,
+    ?8: project_id
+}
+
+invitation_id = text
+inviter = text
+state = invitation_state
+
+

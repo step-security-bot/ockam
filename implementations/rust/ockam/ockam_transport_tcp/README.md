@@ -18,13 +18,18 @@ end-to-end trust between entities.
 TCP is one possible transport for Routing Protocol messages, over time there
 will be more transport implementations.
 
+Currently available transports include:
+
+* `ockam_transport_ble` - Bluetooth Low Energy Transport
+* `ockam_transport_websocket` - WebSocket Transport
+
 ## Usage
 
 Add this to your `Cargo.toml`:
 
 ```
 [dependencies]
-ockam_transport_tcp = "0.30.0"
+ockam_transport_tcp = "0.56.0"
 ```
 
 This crate requires the rust standard library `"std"`.
@@ -42,7 +47,7 @@ This code is licensed under the terms of the [Apache License 2.0][license-link].
 [docs-link]: https://docs.rs/ockam_transport_tcp
 
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-green.svg
-[license-link]: https://github.com/ockam-network/ockam/blob/HEAD/LICENSE
+[license-link]: https://github.com/build-trust/ockam/blob/HEAD/LICENSE
 
 [discuss-image]: https://img.shields.io/badge/Discuss-Github%20Discussions-ff70b4.svg
-[discuss-link]: https://github.com/ockam-network/ockam/discussions
+[discuss-link]: https://github.com/build-trust/ockam/discussions

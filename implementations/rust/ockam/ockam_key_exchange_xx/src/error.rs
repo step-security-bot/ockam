@@ -1,4 +1,8 @@
-use ockam_core::Error;
+use ockam_core::compat::{error::Error as StdError, fmt};
+use ockam_core::{
+    errcode::{Kind, Origin},
+    Error,
+};
 
 /// Represents the failures that can occur in
 /// an Ockam XX Key Agreement
@@ -12,15 +16,27 @@ pub enum XXError {
     MessageLenMismatch,
 }
 
-impl XXError {
-    /// Integer code associated with the error domain.
-    pub const DOMAIN_CODE: u32 = 14_000;
-    /// Descriptive name for the error domain.
-    pub const DOMAIN_NAME: &'static str = "OCKAM_KEX_XX";
+impl StdError for XXError {}
+
+impl fmt::Display for XXError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidState => write!(f, "invalid state"),
+            Self::InternalVaultError => write!(f, "internal vault error"),
+            Self::MessageLenMismatch => write!(f, "message length mismatch"),
+        }
+    }
 }
 
 impl From<XXError> for Error {
+    #[track_caller]
     fn from(err: XXError) -> Self {
-        Self::new(XXError::DOMAIN_CODE + (err as u32), XXError::DOMAIN_NAME)
+        let kind = match err {
+            XXError::InvalidState => Kind::Invalid,
+            XXError::InternalVaultError => Kind::Internal,
+            XXError::MessageLenMismatch => Kind::Misuse,
+        };
+
+        Error::new(Origin::KeyExchange, kind, err)
     }
 }

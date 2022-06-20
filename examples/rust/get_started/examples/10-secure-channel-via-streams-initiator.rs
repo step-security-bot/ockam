@@ -1,4 +1,4 @@
-use ockam::{route, stream::Stream, Context, Result, SecureChannel, TcpTransport, Vault, TCP};
+use ockam::{channel::SecureChannel, route, stream::Stream, vault::Vault, Context, Result, TcpTransport, TCP};
 
 #[ockam::node]
 async fn main(mut ctx: Context) -> Result<()> {
@@ -8,7 +8,7 @@ async fn main(mut ctx: Context) -> Result<()> {
     let hub_node_tcp_address = "<Your node Address copied from hub.ockam.network>";
 
     // Create a vault
-    let vault = Vault::create(&ctx).await?;
+    let vault = Vault::create();
 
     // Create a stream client
     let (sender, _receiver) = Stream::new(&ctx)

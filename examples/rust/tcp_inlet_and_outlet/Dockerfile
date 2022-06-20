@@ -1,6 +1,6 @@
-FROM ghcr.io/ockam-network/ockam/builder as builder
+FROM ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e as builder
 COPY . .
 RUN set -xe; cd examples/rust/tcp_inlet_and_outlet; cargo build --release --examples
 
-FROM ghcr.io/ockam-network/ockam/base
-COPY --from=builder /work/examples/rust/tcp_inlet_and_outlet/target/release/examples/* /usr/bin/
+FROM ghcr.io/build-trust/ockam-base@sha256:40fcb081b6cf56d1e306d859d010a8a4c7b9a02e6b9bc468848c09653f714b74
+COPY --from=builder /work/target/release/examples/* /usr/bin/

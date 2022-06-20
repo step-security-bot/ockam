@@ -1,17 +1,17 @@
 use crate::{PreKeyBundle, X3DHError, X3dhVault, CSUITE};
-use core::convert::TryFrom;
+use alloc::vec;
 use ockam_core::compat::{
     string::{String, ToString},
     vec::Vec,
 };
+use ockam_core::vault::Signature as GenericSignature;
+use ockam_core::vault::{
+    KeyId, SecretAttributes, SecretPersistence, SecretType, AES256_SECRET_LENGTH,
+    CURVE25519_SECRET_LENGTH,
+};
 use ockam_core::Result;
 use ockam_core::{async_trait, compat::boxed::Box};
 use ockam_key_exchange_core::{CompletedKeyExchange, KeyExchanger};
-use ockam_vault_core::Signature as GenericSignature;
-use ockam_vault_core::{
-    Secret, SecretAttributes, SecretPersistence, SecretType, AES256_SECRET_LENGTH,
-    CURVE25519_SECRET_LENGTH,
-};
 
 #[derive(Debug, Clone, Copy)]
 enum InitiatorState {
@@ -20,11 +20,11 @@ enum InitiatorState {
     Done,
 }
 
-/// The responder of X3DH receives a prekey bundle and computes the shared secret
-/// to communicate the first message to the initiator
+/// The initiator of X3DH receives a prekey bundle and computes the shared secret
+/// to communicate the first message to the responder
 pub struct Initiator<V: X3dhVault> {
-    identity_key: Option<Secret>,
-    ephemeral_identity_key: Option<Secret>,
+    identity_key: Option<KeyId>,
+    ephemeral_identity_key: Option<KeyId>,
     prekey_bundle: Option<PreKeyBundle>,
     state: InitiatorState,
     vault: V,
@@ -32,7 +32,7 @@ pub struct Initiator<V: X3dhVault> {
 }
 
 impl<V: X3dhVault> Initiator<V> {
-    pub(crate) fn new(vault: V, identity_key: Option<Secret>) -> Self {
+    pub(crate) fn new(vault: V, identity_key: Option<KeyId>) -> Self {
         Self {
             identity_key,
             ephemeral_identity_key: None,
@@ -46,7 +46,7 @@ impl<V: X3dhVault> Initiator<V> {
     async fn prologue(&mut self) -> Result<()> {
         if self.identity_key.is_none() {
             let p_atts = SecretAttributes::new(
-                SecretType::Curve25519,
+                SecretType::X25519,
                 SecretPersistence::Persistent,
                 CURVE25519_SECRET_LENGTH,
             );
@@ -87,7 +87,7 @@ impl<V: X3dhVault> KeyExchanger for Initiator<V> {
                 let ephemeral_identity_key = self
                     .vault
                     .secret_generate(SecretAttributes::new(
-                        SecretType::Curve25519,
+                        SecretType::X25519,
                         SecretPersistence::Ephemeral,
                         CURVE25519_SECRET_LENGTH,
                     ))
@@ -100,8 +100,8 @@ impl<V: X3dhVault> KeyExchanger for Initiator<V> {
                 self.state = InitiatorState::ProcessPreKeyBundle;
 
                 let mut response = Vec::new();
-                response.extend_from_slice(pubkey.as_ref());
-                response.extend_from_slice(ephemeral_pubkey.as_ref());
+                response.extend_from_slice(pubkey.data());
+                response.extend_from_slice(ephemeral_pubkey.data());
                 Ok(response)
             }
             InitiatorState::ProcessPreKeyBundle | InitiatorState::Done => {
@@ -127,7 +127,7 @@ impl<V: X3dhVault> KeyExchanger for Initiator<V> {
                     .verify(
                         &GenericSignature::new(prekey_bundle.signature_prekey.as_ref().to_vec()),
                         &prekey_bundle.identity_key,
-                        prekey_bundle.signed_prekey.as_ref(),
+                        prekey_bundle.signed_prekey.data(),
                     )
                     .await?;
 

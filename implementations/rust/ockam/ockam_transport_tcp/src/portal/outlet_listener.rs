@@ -1,28 +1,22 @@
-use crate::{PortalMessage, TcpRouterHandle};
-use ockam_core::{async_trait, AsyncTryClone};
-use ockam_core::{route, Address, LocalMessage, Result, Routed, TransportMessage, Worker};
+use crate::{PortalMessage, TcpPortalWorker, TcpRouterHandle};
+use ockam_core::{async_trait, Result, Routed, Worker};
 use ockam_node::Context;
+use ockam_transport_core::TransportError;
 use tracing::debug;
 
+/// A TCP Portal Outlet listen worker
+///
+/// TCP Portal Outlet listen workers are created by `TcpTransport`
+/// after a call is made to
+/// [`TcpTransport::create_outlet`](crate::TcpTransport::create_outlet).
 pub(crate) struct TcpOutletListenWorker {
-    router_handle: TcpRouterHandle,
     peer: String,
 }
 
 impl TcpOutletListenWorker {
-    pub(crate) async fn start(
-        router_handle: &TcpRouterHandle,
-        address: Address,
-        peer: String,
-    ) -> Result<()> {
-        let worker = Self {
-            router_handle: router_handle.async_try_clone().await?,
-            peer,
-        };
-
-        router_handle.ctx().start_worker(address, worker).await?;
-
-        Ok(())
+    /// Create a new `TcpOutletListenWorker`
+    pub(crate) fn new(peer: String) -> Self {
+        Self { peer }
     }
 }
 
@@ -36,13 +30,19 @@ impl Worker for TcpOutletListenWorker {
         ctx: &mut Self::Context,
         msg: Routed<Self::Message>,
     ) -> Result<()> {
-        let address = self.router_handle.connect_outlet(self.peer.clone()).await?;
+        let return_route = msg.return_route();
+
+        if let PortalMessage::Ping = msg.body() {
+        } else {
+            return Err(TransportError::Protocol.into());
+        }
+
+        let (peer_addr, _) = TcpRouterHandle::resolve_peer(self.peer.clone())?;
+
+        let address =
+            TcpPortalWorker::start_new_outlet(ctx, peer_addr, return_route.clone()).await?;
 
         debug!("Created Tcp Outlet at {}", &address);
-
-        let msg = TransportMessage::v1(route![address], msg.return_route(), msg.payload().to_vec());
-
-        ctx.forward(LocalMessage::new(msg, vec![])).await?;
 
         Ok(())
     }

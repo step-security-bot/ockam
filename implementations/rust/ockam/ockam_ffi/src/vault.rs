@@ -1,29 +1,68 @@
 use crate::vault_types::{FfiSecretAttributes, SecretKeyHandle};
 use crate::{check_buffer, FfiError, FfiOckamError};
 use crate::{FfiVaultFatPointer, FfiVaultType};
-use core::convert::{TryFrom, TryInto};
-use core::slice;
+use core::{future::Future, result::Result as StdResult, slice};
+use futures::future::join_all;
 use lazy_static::lazy_static;
+use ockam_core::compat::collections::BTreeMap;
 use ockam_core::compat::sync::Arc;
-use ockam_core::{Error, Result};
-use ockam_vault::SoftwareVault;
-use ockam_vault_core::{
-    AsymmetricVault, Hasher, PublicKey, Secret, SecretAttributes, SecretType, SecretVault,
-    SymmetricVault,
+use ockam_core::vault::{
+    AsymmetricVault, Hasher, KeyId, PublicKey, SecretAttributes, SecretVault, SymmetricVault,
 };
-use ockam_vault_sync_core::VaultMutex;
-use std::future::Future;
-use tokio::runtime::Runtime;
-use tokio::sync::RwLock;
-use tokio::task;
+use ockam_core::{Error, Result};
+use ockam_vault::Vault;
+use tokio::{runtime::Runtime, sync::RwLock, task};
 
-/// FFI Vault trait. See documentation for individual sub-traits for details.
-pub trait FfiVault: SecretVault + Hasher + SymmetricVault + AsymmetricVault + Send {}
+#[derive(Default)]
+struct SecretsMapping {
+    mapping: BTreeMap<u64, KeyId>,
+    last_index: u64,
+}
 
-impl<D> FfiVault for D where D: SecretVault + Hasher + SymmetricVault + AsymmetricVault + Send {}
+impl SecretsMapping {
+    fn insert(&mut self, key_id: KeyId) -> u64 {
+        self.last_index += 1;
+
+        self.mapping.insert(self.last_index, key_id);
+
+        self.last_index
+    }
+
+    fn get(&self, index: u64) -> Result<KeyId> {
+        Ok(self
+            .mapping
+            .get(&index)
+            .cloned()
+            .ok_or(FfiError::EntryNotFound)?)
+    }
+
+    fn take(&mut self, index: u64) -> Result<KeyId> {
+        Ok(self.mapping.remove(&index).ok_or(FfiError::EntryNotFound)?)
+    }
+}
+
+#[derive(Clone, Default)]
+struct VaultEntry {
+    vault: Vault,
+    secrets_mapping: Arc<RwLock<SecretsMapping>>,
+}
+
+impl VaultEntry {
+    async fn insert(&self, key_id: KeyId) -> u64 {
+        self.secrets_mapping.write().await.insert(key_id)
+    }
+
+    async fn get(&self, index: u64) -> Result<KeyId> {
+        self.secrets_mapping.read().await.get(index)
+    }
+
+    async fn take(&self, index: u64) -> Result<KeyId> {
+        self.secrets_mapping.write().await.take(index)
+    }
+}
 
 lazy_static! {
-    static ref SOFTWARE_VAULTS: RwLock<Vec<VaultMutex<SoftwareVault>>> = RwLock::new(vec![]);
+    static ref SOFTWARE_VAULTS: RwLock<Vec<VaultEntry>> = RwLock::new(vec![]);
     static ref RUNTIME: Arc<Runtime> = Arc::new(Runtime::new().unwrap());
 }
 
@@ -42,7 +81,7 @@ where
     })
 }
 
-async fn get_vault(context: FfiVaultFatPointer) -> Result<VaultMutex<SoftwareVault>> {
+async fn get_vault_entry(context: FfiVaultFatPointer) -> Result<VaultEntry> {
     match context.vault_type() {
         FfiVaultType::Software => {
             let item = SOFTWARE_VAULTS
@@ -60,17 +99,18 @@ async fn get_vault(context: FfiVaultFatPointer) -> Result<VaultMutex<SoftwareVau
 /// Create and return a default Ockam Vault.
 #[no_mangle]
 pub extern "C" fn ockam_vault_default_init(context: &mut FfiVaultFatPointer) -> FfiOckamError {
-    // TODO: handle logging
+    handle_panics(|| {
+        // TODO: handle logging
+        let handle = block_future(async move {
+            let mut write_lock = SOFTWARE_VAULTS.write().await;
+            write_lock.push(Default::default());
+            write_lock.len() - 1
+        });
 
-    let handle = block_future(async move {
-        let mut write_lock = SOFTWARE_VAULTS.write().await;
-        write_lock.push(VaultMutex::create(SoftwareVault::default()));
-        write_lock.len() - 1
-    });
+        *context = FfiVaultFatPointer::new(handle as u64, FfiVaultType::Software);
 
-    *context = FfiVaultFatPointer::new(handle as u64, FfiVaultType::Software);
-
-    FfiOckamError::none()
+        Ok(())
+    })
 }
 
 /// Compute the SHA-256 hash on `input` and put the result in `digest`.
@@ -82,24 +122,22 @@ pub extern "C" fn ockam_vault_sha256(
     input_length: u32,
     digest: *mut u8,
 ) -> FfiOckamError {
-    check_buffer!(input);
-    check_buffer!(digest);
+    handle_panics(|| {
+        check_buffer!(input);
+        check_buffer!(digest);
 
-    let input = unsafe { core::slice::from_raw_parts(input, input_length as usize) };
+        let input = unsafe { core::slice::from_raw_parts(input, input_length as usize) };
 
-    let res = match block_future(async move {
-        let mut v = get_vault(context).await?;
-        v.sha256(input).await
-    }) {
-        Ok(d) => d,
-        Err(err) => return err.into(),
-    };
+        let res = block_future(async move {
+            let entry = get_vault_entry(context).await?;
+            entry.vault.sha256(input).await
+        })?;
 
-    unsafe {
-        std::ptr::copy_nonoverlapping(res.as_ptr(), digest, res.len());
-    }
-
-    FfiOckamError::none()
+        unsafe {
+            std::ptr::copy_nonoverlapping(res.as_ptr(), digest, res.len());
+        }
+        Ok(())
+    })
 }
 
 /// Generate a secret key with the specific attributes.
@@ -110,18 +148,18 @@ pub extern "C" fn ockam_vault_secret_generate(
     secret: &mut SecretKeyHandle,
     attributes: FfiSecretAttributes,
 ) -> FfiOckamError {
-    let res = match block_future(async move {
-        let mut v = get_vault(context).await?;
-        let atts = attributes.try_into()?;
-        let ctx = v.secret_generate(atts).await?;
-        Ok::<u64, Error>(ctx.index() as u64)
-    }) {
-        Ok(d) => d,
-        Err(err) => return err.into(),
-    };
-    *secret = res;
+    handle_panics(|| {
+        *secret = block_future(async move {
+            let entry = get_vault_entry(context).await?;
+            let atts = attributes.try_into()?;
+            let key_id = entry.vault.secret_generate(atts).await?;
 
-    FfiOckamError::none()
+            let index = entry.insert(key_id).await;
+
+            Ok::<u64, Error>(index)
+        })?;
+        Ok(())
+    })
 }
 
 /// Import a secret key with the specific handle and attributes.
@@ -133,23 +171,22 @@ pub extern "C" fn ockam_vault_secret_import(
     input: *mut u8,
     input_length: u32,
 ) -> FfiOckamError {
-    check_buffer!(input, input_length);
+    handle_panics(|| {
+        check_buffer!(input, input_length);
+        *secret = block_future(async move {
+            let entry = get_vault_entry(context).await?;
+            let atts = attributes.try_into()?;
 
-    let res = match block_future(async move {
-        let mut v = get_vault(context).await?;
-        let atts = attributes.try_into()?;
+            let secret_data = unsafe { core::slice::from_raw_parts(input, input_length as usize) };
 
-        let secret_data = unsafe { core::slice::from_raw_parts(input, input_length as usize) };
+            let key_id = entry.vault.secret_import(secret_data, atts).await?;
 
-        let ctx = v.secret_import(secret_data, atts).await?;
-        Ok::<u64, Error>(ctx.index() as u64)
-    }) {
-        Ok(d) => d,
-        Err(err) => return err.into(),
-    };
-    *secret = res;
+            let index = entry.insert(key_id).await;
 
-    FfiOckamError::none()
+            Ok::<u64, Error>(index)
+        })?;
+        Ok(())
+    })
 }
 
 /// Export a secret key with the specific handle to the `output_buffer`.
@@ -162,24 +199,27 @@ pub extern "C" fn ockam_vault_secret_export(
     output_buffer_length: &mut u32,
 ) -> FfiOckamError {
     *output_buffer_length = 0;
+    handle_panics(|| {
+        block_future(async move {
+            let entry = get_vault_entry(context).await?;
+            let key_id = entry.get(secret).await?;
+            let key = entry.vault.secret_export(&key_id).await?;
+            if output_buffer_size < key.as_ref().len() as u32 {
+                return Err(FfiError::BufferTooSmall.into());
+            }
+            *output_buffer_length = key.as_ref().len() as u32;
 
-    match block_future(async move {
-        let mut v = get_vault(context).await?;
-        let ctx = Secret::new(secret as usize);
-        let key = v.secret_export(&ctx).await?;
-        if output_buffer_size < key.as_ref().len() as u32 {
-            return Err(FfiError::BufferTooSmall.into());
-        }
-        *output_buffer_length = key.as_ref().len() as u32;
-
-        unsafe {
-            std::ptr::copy_nonoverlapping(key.as_ref().as_ptr(), output_buffer, key.as_ref().len());
-        };
-        Ok::<(), Error>(())
-    }) {
-        Ok(_) => FfiOckamError::none(),
-        Err(err) => err.into(),
-    }
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    key.as_ref().as_ptr(),
+                    output_buffer,
+                    key.as_ref().len(),
+                );
+            };
+            Ok::<(), Error>(())
+        })?;
+        Ok(())
+    })
 }
 
 /// Get the public key, given a secret key, and copy it to the output buffer.
@@ -192,24 +232,23 @@ pub extern "C" fn ockam_vault_secret_publickey_get(
     output_buffer_length: &mut u32,
 ) -> FfiOckamError {
     *output_buffer_length = 0;
+    handle_panics(|| {
+        block_future(async move {
+            let entry = get_vault_entry(context).await?;
+            let key_id = entry.get(secret).await?;
+            let key = entry.vault.secret_public_key_get(&key_id).await?;
+            if output_buffer_size < key.data().len() as u32 {
+                return Err(FfiError::BufferTooSmall.into());
+            }
+            *output_buffer_length = key.data().len() as u32;
 
-    match block_future(async move {
-        let mut v = get_vault(context).await?;
-        let ctx = Secret::new(secret as usize);
-        let key = v.secret_public_key_get(&ctx).await?;
-        if output_buffer_size < key.as_ref().len() as u32 {
-            return Err(FfiError::BufferTooSmall.into());
-        }
-        *output_buffer_length = key.as_ref().len() as u32;
-
-        unsafe {
-            std::ptr::copy_nonoverlapping(key.as_ref().as_ptr(), output_buffer, key.as_ref().len());
-        };
-        Ok::<(), Error>(())
-    }) {
-        Ok(_) => FfiOckamError::none(),
-        Err(err) => err.into(),
-    }
+            unsafe {
+                std::ptr::copy_nonoverlapping(key.data().as_ptr(), output_buffer, key.data().len());
+            };
+            Ok::<(), Error>(())
+        })?;
+        Ok(())
+    })
 }
 
 /// Retrieve the attributes for a specified secret.
@@ -219,19 +258,15 @@ pub extern "C" fn ockam_vault_secret_attributes_get(
     secret: SecretKeyHandle,
     attributes: &mut FfiSecretAttributes,
 ) -> FfiOckamError {
-    let res = match block_future(async move {
-        let mut v = get_vault(context).await?;
-        let ctx = Secret::new(secret as usize);
-        let atts = v.secret_attributes_get(&ctx).await?;
-        Ok::<FfiSecretAttributes, Error>(atts.into())
-    }) {
-        Ok(d) => d,
-        Err(err) => return err.into(),
-    };
-
-    *attributes = res;
-
-    FfiOckamError::none()
+    handle_panics(|| {
+        *attributes = block_future(async move {
+            let entry = get_vault_entry(context).await?;
+            let key_id = entry.get(secret).await?;
+            let atts = entry.vault.secret_attributes_get(&key_id).await?;
+            Ok::<FfiSecretAttributes, Error>(atts.into())
+        })?;
+        Ok(())
+    })
 }
 
 /// Delete an ockam vault secret.
@@ -241,9 +276,9 @@ pub extern "C" fn ockam_vault_secret_destroy(
     secret: SecretKeyHandle,
 ) -> FfiOckamError {
     match block_future(async move {
-        let mut v = get_vault(context).await?;
-        let ctx = Secret::new(secret as usize);
-        v.secret_destroy(ctx).await?;
+        let entry = get_vault_entry(context).await?;
+        let key_id = entry.take(secret).await?;
+        entry.vault.secret_destroy(key_id).await?;
         Ok::<(), Error>(())
     }) {
         Ok(_) => FfiOckamError::none(),
@@ -261,41 +296,23 @@ pub extern "C" fn ockam_vault_ecdh(
     peer_publickey_length: u32,
     shared_secret: &mut SecretKeyHandle,
 ) -> FfiOckamError {
-    check_buffer!(peer_publickey, peer_publickey_length);
+    handle_panics(|| {
+        check_buffer!(peer_publickey, peer_publickey_length);
 
-    let peer_publickey =
-        unsafe { core::slice::from_raw_parts(peer_publickey, peer_publickey_length as usize) };
+        let peer_publickey =
+            unsafe { core::slice::from_raw_parts(peer_publickey, peer_publickey_length as usize) };
 
-    let res = match block_future(async move {
-        let mut v = get_vault(context).await?;
-        let ctx = Secret::new(secret as usize);
-        let atts = v.secret_attributes_get(&ctx).await?;
-        let pubkey = match atts.stype() {
-            SecretType::Curve25519 => {
-                if peer_publickey.len() != 32 {
-                    Err(FfiError::InvalidPublicKey)
-                } else {
-                    Ok(PublicKey::new(peer_publickey.to_vec()))
-                }
-            }
-            SecretType::P256 => {
-                if peer_publickey.len() != 65 {
-                    Err(FfiError::InvalidPublicKey)
-                } else {
-                    Ok(PublicKey::new(peer_publickey.to_vec()))
-                }
-            }
-            _ => Err(FfiError::UnknownPublicKeyType),
-        }?;
-        let shared_ctx = v.ec_diffie_hellman(&ctx, &pubkey).await?;
-        Ok::<u64, Error>(shared_ctx.index() as u64)
-    }) {
-        Ok(res) => res,
-        Err(err) => return err.into(),
-    };
-    *shared_secret = res;
-
-    FfiOckamError::none()
+        *shared_secret = block_future(async move {
+            let entry = get_vault_entry(context).await?;
+            let key_id = entry.get(secret).await?;
+            let atts = entry.vault.secret_attributes_get(&key_id).await?;
+            let pubkey = PublicKey::new(peer_publickey.to_vec(), atts.stype());
+            let shared_ctx = entry.vault.ec_diffie_hellman(&key_id, &pubkey).await?;
+            let index = entry.insert(shared_ctx).await;
+            Ok::<u64, Error>(index)
+        })?;
+        Ok(())
+    })
 }
 
 /// Perform an HMAC-SHA256 based key derivation function on the supplied salt and input key
@@ -309,57 +326,58 @@ pub extern "C" fn ockam_vault_hkdf_sha256(
     derived_outputs_count: u8,
     derived_outputs: *mut SecretKeyHandle,
 ) -> FfiOckamError {
-    let derived_outputs_count = derived_outputs_count as usize;
+    handle_panics(|| {
+        let derived_outputs_count = derived_outputs_count as usize;
 
-    match block_future(async move {
-        let mut v = get_vault(context).await?;
-        let salt_ctx = Secret::new(salt as usize);
-        let ikm_ctx = if input_key_material.is_null() {
-            None
-        } else {
-            let ctx = unsafe { Secret::new(*input_key_material as usize) };
-            Some(ctx)
-        };
-        let ikm_ctx = ikm_ctx.as_ref();
+        block_future(async move {
+            let entry = get_vault_entry(context).await?;
+            let salt_key_id = entry.get(salt).await?;
+            let ikm_key_id = if input_key_material.is_null() {
+                None
+            } else {
+                let ctx = unsafe { entry.get(*input_key_material).await? };
+                Some(ctx)
+            };
+            let ikm_key_id = ikm_key_id.as_ref();
 
-        let array: &[FfiSecretAttributes] =
-            unsafe { slice::from_raw_parts(derived_outputs_attributes, derived_outputs_count) };
+            let array: &[FfiSecretAttributes] =
+                unsafe { slice::from_raw_parts(derived_outputs_attributes, derived_outputs_count) };
 
-        let mut output_attributes = Vec::<SecretAttributes>::with_capacity(array.len());
-        for x in array.iter() {
-            output_attributes.push(SecretAttributes::try_from(*x)?);
-        }
+            let mut output_attributes = Vec::<SecretAttributes>::with_capacity(array.len());
+            for x in array.iter() {
+                output_attributes.push(SecretAttributes::try_from(*x)?);
+            }
 
-        // TODO: Hardcoded to be empty for now because any changes
-        // to the C layer requires an API change.
-        // This change was necessary to implement Enrollment since the info string is not
-        // left blank for that protocol, but is blank for the XX key exchange pattern.
-        // If we agree to change the API, then this wouldn't be hardcoded but received
-        // from a parameter in the C API. Elixir and other consumers would be expected
-        // to pass the appropriate flag. The other option is to not expose the vault
-        // directly since it may confuse users about what to pass here and
-        // I don't like the idea of yelling at consumers through comments.
-        // Instead the vault could be encapsulated in channels and key exchanges.
-        // Either way, I don't want to change the API until this decision is finalized.
-        let hkdf_output = v
-            .hkdf_sha256(&salt_ctx, b"", ikm_ctx, output_attributes)
-            .await?;
+            // TODO: Hardcoded to be empty for now because any changes
+            // to the C layer requires an API change.
+            // This change was necessary to implement Enrollment since the info string is not
+            // left blank for that protocol, but is blank for the XX key exchange pattern.
+            // If we agree to change the API, then this wouldn't be hardcoded but received
+            // from a parameter in the C API. Elixir and other consumers would be expected
+            // to pass the appropriate flag. The other option is to not expose the vault
+            // directly since it may confuse users about what to pass here and
+            // I don't like the idea of yelling at consumers through comments.
+            // Instead the vault could be encapsulated in channels and key exchanges.
+            // Either way, I don't want to change the API until this decision is finalized.
+            let hkdf_output = entry
+                .vault
+                .hkdf_sha256(&salt_key_id, b"", ikm_key_id, output_attributes)
+                .await?;
 
-        let hkdf_output: Vec<SecretKeyHandle> =
-            hkdf_output.into_iter().map(|x| x.index() as u64).collect();
+            let hkdf_output: Vec<SecretKeyHandle> =
+                join_all(hkdf_output.into_iter().map(|x| entry.insert(x))).await;
 
-        unsafe {
-            std::ptr::copy_nonoverlapping(
-                hkdf_output.as_ptr(),
-                derived_outputs,
-                derived_outputs_count,
-            )
-        };
-        Ok::<(), Error>(())
-    }) {
-        Ok(_) => FfiOckamError::none(),
-        Err(err) => err.into(),
-    }
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    hkdf_output.as_ptr(),
+                    derived_outputs,
+                    derived_outputs_count,
+                )
+            };
+            Ok::<(), Error>(())
+        })?;
+        Ok(())
+    })
 }
 
 ///   Encrypt a payload using AES-GCM.
@@ -376,37 +394,44 @@ pub extern "C" fn ockam_vault_aead_aes_gcm_encrypt(
     ciphertext_and_tag_size: u32,
     ciphertext_and_tag_length: &mut u32,
 ) -> FfiOckamError {
-    check_buffer!(additional_data);
-    check_buffer!(plaintext);
     *ciphertext_and_tag_length = 0;
+    handle_panics(|| {
+        check_buffer!(additional_data);
+        check_buffer!(plaintext);
 
-    let additional_data =
-        unsafe { core::slice::from_raw_parts(additional_data, additional_data_length as usize) };
-
-    let plaintext = unsafe { core::slice::from_raw_parts(plaintext, plaintext_length as usize) };
-
-    match block_future(async move {
-        let mut v = get_vault(context).await?;
-        let ctx = Secret::new(secret as usize);
-        let mut nonce_vec = vec![0; 12 - 2];
-        nonce_vec.extend_from_slice(&nonce.to_be_bytes());
-        let ciphertext = v
-            .aead_aes_gcm_encrypt(&ctx, plaintext, &nonce_vec, additional_data)
-            .await?;
-
-        if ciphertext_and_tag_size < ciphertext.len() as u32 {
-            return Err(FfiError::BufferTooSmall.into());
-        }
-        *ciphertext_and_tag_length = ciphertext.len() as u32;
-
-        unsafe {
-            std::ptr::copy_nonoverlapping(ciphertext.as_ptr(), ciphertext_and_tag, ciphertext.len())
+        let additional_data = unsafe {
+            core::slice::from_raw_parts(additional_data, additional_data_length as usize)
         };
-        Ok::<(), Error>(())
-    }) {
-        Ok(_) => FfiOckamError::none(),
-        Err(err) => err.into(),
-    }
+
+        let plaintext =
+            unsafe { core::slice::from_raw_parts(plaintext, plaintext_length as usize) };
+
+        block_future(async move {
+            let entry = get_vault_entry(context).await?;
+            let key_id = entry.get(secret).await?;
+            let mut nonce_vec = vec![0; 12 - 2];
+            nonce_vec.extend_from_slice(&nonce.to_be_bytes());
+            let ciphertext = entry
+                .vault
+                .aead_aes_gcm_encrypt(&key_id, plaintext, &nonce_vec, additional_data)
+                .await?;
+
+            if ciphertext_and_tag_size < ciphertext.len() as u32 {
+                return Err(FfiError::BufferTooSmall.into());
+            }
+            *ciphertext_and_tag_length = ciphertext.len() as u32;
+
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    ciphertext.as_ptr(),
+                    ciphertext_and_tag,
+                    ciphertext.len(),
+                )
+            };
+            Ok::<(), Error>(())
+        })?;
+        Ok(())
+    })
 }
 
 /// Decrypt a payload using AES-GCM.
@@ -423,53 +448,97 @@ pub extern "C" fn ockam_vault_aead_aes_gcm_decrypt(
     plaintext_size: u32,
     plaintext_length: &mut u32,
 ) -> FfiOckamError {
-    check_buffer!(ciphertext_and_tag, ciphertext_and_tag_length);
-    check_buffer!(additional_data);
     *plaintext_length = 0;
+    handle_panics(|| {
+        check_buffer!(ciphertext_and_tag, ciphertext_and_tag_length);
+        check_buffer!(additional_data);
 
-    let additional_data =
-        unsafe { core::slice::from_raw_parts(additional_data, additional_data_length as usize) };
+        let additional_data = unsafe {
+            core::slice::from_raw_parts(additional_data, additional_data_length as usize)
+        };
 
-    let ciphertext_and_tag = unsafe {
-        core::slice::from_raw_parts(ciphertext_and_tag, ciphertext_and_tag_length as usize)
-    };
+        let ciphertext_and_tag = unsafe {
+            core::slice::from_raw_parts(ciphertext_and_tag, ciphertext_and_tag_length as usize)
+        };
 
-    match block_future(async move {
-        let mut v = get_vault(context).await?;
-        let ctx = Secret::new(secret as usize);
-        let mut nonce_vec = vec![0; 12 - 2];
-        nonce_vec.extend_from_slice(&nonce.to_be_bytes());
-        let plain = v
-            .aead_aes_gcm_decrypt(&ctx, ciphertext_and_tag, &nonce_vec, additional_data)
-            .await?;
-        if plaintext_size < plain.len() as u32 {
-            return Err(FfiError::BufferTooSmall.into());
-        }
-        *plaintext_length = plain.len() as u32;
+        block_future(async move {
+            let entry = get_vault_entry(context).await?;
+            let key_id = entry.get(secret).await?;
+            let mut nonce_vec = vec![0; 12 - 2];
+            nonce_vec.extend_from_slice(&nonce.to_be_bytes());
+            let plain = entry
+                .vault
+                .aead_aes_gcm_decrypt(&key_id, ciphertext_and_tag, &nonce_vec, additional_data)
+                .await?;
+            if plaintext_size < plain.len() as u32 {
+                return Err(FfiError::BufferTooSmall.into());
+            }
+            *plaintext_length = plain.len() as u32;
 
-        unsafe { std::ptr::copy_nonoverlapping(plain.as_ptr(), plaintext, plain.len()) };
-        Ok::<(), Error>(())
-    }) {
-        Ok(_) => FfiOckamError::none(),
-        Err(err) => err.into(),
-    }
+            unsafe { std::ptr::copy_nonoverlapping(plain.as_ptr(), plaintext, plain.len()) };
+            Ok::<(), Error>(())
+        })?;
+        Ok(())
+    })
 }
 
 /// De-initialize an Ockam Vault.
 #[no_mangle]
 pub extern "C" fn ockam_vault_deinit(context: FfiVaultFatPointer) -> FfiOckamError {
-    block_future(async move {
-        match context.vault_type() {
-            FfiVaultType::Software => {
-                let handle = context.handle() as usize;
-                let mut v = SOFTWARE_VAULTS.write().await;
-                if handle < v.len() {
-                    v.remove(handle);
-                    FfiOckamError::none()
-                } else {
-                    FfiError::VaultNotFound.into()
+    handle_panics(|| {
+        block_future(async move {
+            match context.vault_type() {
+                FfiVaultType::Software => {
+                    let handle = context.handle() as usize;
+                    let mut v = SOFTWARE_VAULTS.write().await;
+                    if handle < v.len() {
+                        v.remove(handle);
+                        Ok(())
+                    } else {
+                        Err(FfiError::VaultNotFound)
+                    }
                 }
             }
-        }
+        })?;
+        Ok(())
     })
+}
+
+fn handle_panics<F>(f: F) -> FfiOckamError
+where
+    F: FnOnce() -> StdResult<(), FfiOckamError>,
+{
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(f));
+    match result {
+        // No error.
+        Ok(Ok(())) => FfiOckamError::none(),
+        // Failed with a specific ockam error:
+        Ok(Err(e)) => e,
+        // Panicked
+        Err(e) => {
+            // Force an abort if either:
+            //
+            // - `e` panics during its `Drop` impl.
+            // - `FfiOckamError::from(FfiError)` panics.
+            //
+            // Both of these are extremely unlikely, but possible.
+            let panic_guard = AbortOnDrop;
+            drop(e);
+            let ret = FfiOckamError::from(FfiError::UnexpectedPanic);
+            core::mem::forget(panic_guard);
+            ret
+        }
+    }
+}
+
+/// Aborts on drop, used to guard against panics in a section of code.
+///
+/// Correct usage should `mem::forget` this struct after the non-panicking
+/// section.
+struct AbortOnDrop;
+impl Drop for AbortOnDrop {
+    fn drop(&mut self) {
+        eprintln!("Panic from error drop, aborting!");
+        std::process::abort();
+    }
 }

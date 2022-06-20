@@ -1,44 +1,79 @@
-defprotocol Ockam.Message do
+defmodule Ockam.Message do
   @moduledoc """
-  Defines an elixir protocol for a message.
+  Message data structure for routing
   """
+  alias Ockam.Message
 
-  alias Ockam.Address
+  defstruct [:payload, onward_route: [], return_route: [], version: 1, local_metadata: %{}]
 
-  @fallback_to_any true
+  @type t() :: %__MODULE__{}
 
-  @doc "Returns the onward_route of a message."
-  @spec onward_route(t()) :: [Address.t()]
-  def onward_route(message)
+  @doc """
+  Creates a message to reply for `message`
 
-  @doc "Returns the return_route of a message."
-  @spec return_route(t()) :: [Address.t()]
-  def return_route(message)
+  onward_route is a return route from `message`
+  return_route is `[my_address]`
+  """
+  def reply(message, my_address, payload) do
+    %Message{
+      onward_route: return_route(message),
+      return_route: [my_address],
+      payload: payload
+    }
+  end
 
-  @doc "Returns the payload of a message."
-  @spec payload(t()) :: binary()
-  def payload(message)
-end
+  @doc """
+  Forward to the next address in the onward route
+  """
+  def forward(%Message{} = message) do
+    [_me | onward_route] = onward_route(message)
+    set_onward_route(message, onward_route)
+  end
 
-# implement Ockam.Message for any message that does not already have an implementation
-defimpl Ockam.Message, for: Any do
-  @moduledoc false
+  @doc """
+  Trace `address` in the return route
+  """
+  def trace(%Message{} = message, address) do
+    set_return_route(message, [address | return_route(message)])
+  end
 
-  # if the message is a map that has an onward_route field with a list value, use it.
-  def onward_route(%{onward_route: onward_route}) when is_list(onward_route), do: onward_route
+  @doc """
+  Forward to the next address in the onward route and trace
+  the current address in the return route
+  """
+  def forward_trace(%Message{} = message) do
+    [me | onward_route] = onward_route(message)
+    message |> set_onward_route(onward_route) |> trace(me)
+  end
 
-  # for any other message, that does not implement Ockam.Message, assume onward_route is empty.
-  def onward_route(_message), do: []
+  @doc "Get onward_route from the message"
+  def onward_route(%Message{onward_route: onward_route}) when is_list(onward_route),
+    do: onward_route
 
-  # if the message is a map that has an return_route field with a list value, use it.
-  def return_route(%{return_route: return_route}) when is_list(return_route), do: return_route
+  @doc "Get return_route from the message"
+  def return_route(%Message{return_route: return_route}) when is_list(return_route),
+    do: return_route
 
-  # for any other message, that does not implement Ockam.Message, assume return_route is empty.
-  def return_route(_message), do: []
+  def return_route(%Message{return_route: nil}), do: []
 
-  # if the message is a map that has an payload field, use it.
-  def payload(%{payload: payload}), do: payload
+  @doc "Get payload from the message"
+  def payload(%Message{payload: payload}), do: payload
 
-  # for any other message, that does not implement Ockam.Message, assume the message is the payload.
-  def payload(message), do: message
+  def set_onward_route(%Message{} = message, onward_route) when is_list(onward_route) do
+    %{message | onward_route: onward_route}
+  end
+
+  def set_return_route(%Message{} = message, return_route) when is_list(return_route) do
+    %{message | return_route: return_route}
+  end
+
+  def set_payload(%Message{} = message, payload) when is_list(payload) do
+    %{message | payload: payload}
+  end
+
+  def put_local_metadata(%Message{} = message, key, value) when is_atom(key) do
+    Map.update(message, :local_metadata, %{key => value}, fn metadata ->
+      Map.put(metadata, key, value)
+    end)
+  end
 end

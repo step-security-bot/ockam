@@ -1,5 +1,6 @@
-use ockam::{Context, Entity, Result, TrustEveryonePolicy, Vault};
-use ockam::{RemoteForwarder, Routed, TcpTransport, Worker, TCP};
+use ockam::identity::{Identity, TrustEveryonePolicy};
+use ockam::{remote::RemoteForwarder, Routed, TcpTransport, Worker, TCP};
+use ockam::{vault::Vault, Context, Result};
 
 struct Echoer;
 
@@ -24,10 +25,10 @@ async fn main(ctx: Context) -> Result<()> {
     TcpTransport::create(&ctx).await?;
 
     // Create a Vault to safely store secret keys for Bob.
-    let vault = Vault::create(&ctx).await?;
+    let vault = Vault::create();
 
-    // Create an Entity to represent Bob.
-    let mut bob = Entity::create(&ctx, &vault).await?;
+    // Create an Identity to represent Bob.
+    let bob = Identity::create(&ctx, &vault).await?;
 
     // Create a secure channel listener for Bob that will wait for requests to
     // initiate an Authenticated Key Exchange.
@@ -44,7 +45,7 @@ async fn main(ctx: Context) -> Result<()> {
     // All messages that arrive at that forwarding address will be sent to this program
     // using the TCP connection we created as a client.
     let node_in_hub = (TCP, "1.node.ockam.network:4000");
-    let forwarder = RemoteForwarder::create(&ctx, node_in_hub, "listener").await?;
+    let forwarder = RemoteForwarder::create(&ctx, node_in_hub).await?;
     println!("\n[✓] RemoteForwarder was created on the node at: 1.node.ockam.network:4000");
     println!("Forwarding address for Bob is:");
     println!("{}", forwarder.remote_address());

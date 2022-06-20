@@ -1,8 +1,8 @@
 use crate::{
-    KeyExchangeCompleted, SecureChannelKeyExchanger, SecureChannelListener,
-    SecureChannelNewKeyExchanger, SecureChannelVault, SecureChannelWorker,
+    KeyExchangeCompleted, SecureChannelDecryptor, SecureChannelKeyExchanger, SecureChannelListener,
+    SecureChannelNewKeyExchanger, SecureChannelVault,
 };
-use ockam_core::compat::rand::random;
+use ockam_core::compat::{rand::random, vec::Vec};
 use ockam_core::{Address, Result, Route};
 use ockam_node::Context;
 use serde::{Deserialize, Serialize};
@@ -34,17 +34,20 @@ pub struct SecureChannel;
 impl SecureChannel {
     /// Create and start channel listener with given address using noise xx and software vault.
     #[cfg(all(feature = "software_vault", feature = "noise_xx"))]
-    pub async fn create_listener<A: Into<Address>>(
+    pub async fn create_listener<A: Into<Address>, V: SecureChannelVault>(
         ctx: &Context,
         address: A,
-        vault: &Address,
+        vault: &V,
     ) -> Result<()> {
-        use ockam_core::AsyncTryClone;
         use ockam_key_exchange_xx::XXNewKeyExchanger;
-        use ockam_vault_sync_core::VaultSync;
-        let vault = VaultSync::create_with_worker(ctx, vault).await?;
         let new_key_exchanger = XXNewKeyExchanger::new(vault.async_try_clone().await?);
-        Self::create_listener_extended(ctx, address, new_key_exchanger, vault).await
+        Self::create_listener_extended(
+            ctx,
+            address,
+            new_key_exchanger,
+            vault.async_try_clone().await?,
+        )
+        .await
     }
 
     /// Create and start channel listener with given address.
@@ -68,23 +71,20 @@ impl SecureChannel {
 
     /// Create initiator channel with given route to a remote channel listener using noise xx and software vault.
     #[cfg(all(feature = "software_vault", feature = "noise_xx"))]
-    pub async fn create(
+    pub async fn create<V: SecureChannelVault>(
         ctx: &Context,
         route: impl Into<Route>,
-        vault: &Address,
+        vault: &V,
     ) -> Result<SecureChannelInfo> {
-        use ockam_core::AsyncTryClone;
         use ockam_key_exchange_core::NewKeyExchanger;
         use ockam_key_exchange_xx::XXNewKeyExchanger;
-        use ockam_vault_sync_core::VaultSync;
-        let vault = VaultSync::create_with_worker(ctx, vault).await?;
         let new_key_exchanger = XXNewKeyExchanger::new(vault.async_try_clone().await?);
         Self::create_extended(
             ctx,
             route,
             None,
             new_key_exchanger.initiator().await?,
-            vault,
+            vault.async_try_clone().await?,
         )
         .await
     }
@@ -93,36 +93,31 @@ impl SecureChannel {
     pub async fn create_extended(
         ctx: &Context,
         route: impl Into<Route>,
-        first_responder_address: Option<Address>,
+        custom_payload: Option<Vec<u8>>,
         key_exchanger: impl SecureChannelKeyExchanger,
         vault: impl SecureChannelVault,
     ) -> Result<SecureChannelInfo> {
         let address_remote: Address = random();
-        let address_local: Address = random();
 
         debug!(
-            "Starting SecureChannel initiator at local: {}, remote: {}",
-            &address_local, &address_remote
+            "Starting SecureChannel initiator at remote: {}",
+            &address_remote
         );
 
         let route = route.into();
 
-        let address: Address = random();
-        let mut child_ctx = ctx.new_context(address).await?;
-        let channel = SecureChannelWorker::new(
-            true,
-            route,
-            address_remote.clone(),
-            address_local.clone(),
-            Some(child_ctx.address()),
-            first_responder_address,
+        let callback_address: Address = random();
+        let decryptor = SecureChannelDecryptor::new_initiator(
             key_exchanger,
-            vault,
+            Some(callback_address.clone()),
+            route,
+            custom_payload,
+            vault.async_try_clone().await?,
         )
         .await?;
 
-        ctx.start_worker(vec![address_remote.clone(), address_local.clone()], channel)
-            .await?;
+        let mut child_ctx = ctx.new_detached(callback_address).await?;
+        ctx.start_worker(address_remote.clone(), decryptor).await?;
 
         let resp = child_ctx
             .receive_timeout::<KeyExchangeCompleted>(120)
@@ -131,7 +126,7 @@ impl SecureChannel {
             .body();
 
         let info = SecureChannelInfo {
-            worker_address: address_local,
+            worker_address: resp.address().clone(),
             auth_hash: resp.auth_hash(),
         };
 

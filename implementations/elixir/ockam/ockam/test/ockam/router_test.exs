@@ -21,11 +21,7 @@ defmodule Ockam.Router.Tests.Echo do
 
   @impl true
   def handle_message(message, state) do
-    reply = %{
-      onward_route: Message.return_route(message),
-      return_route: [state.address],
-      payload: Message.payload(message)
-    }
+    reply = Message.reply(message, state.address, Message.payload(message))
 
     Logger.info("\nMESSAGE: #{inspect(message)}\nREPLY: #{inspect(reply)}")
     Router.route(reply)
@@ -53,12 +49,8 @@ defmodule Ockam.Router.Tests.Forwarder do
         Logger.info("\nMESSAGE BACK: #{inspect(message)}}")
         {:ok, state}
 
-      [^address | rest] ->
-        forward = %{
-          onward_route: rest,
-          return_route: [address | Message.return_route(message)],
-          payload: Message.payload(message)
-        }
+      [^address | _rest] ->
+        forward = Message.forward_trace(message)
 
         Logger.info("\nMESSAGE: #{inspect(message)}\nFORWARD: #{inspect(forward)}")
         Router.route(forward)
@@ -90,11 +82,7 @@ defmodule Ockam.Router.Tests.PingPong do
           "ping " <> next
       end
 
-    reply = %{
-      onward_route: Message.return_route(message),
-      return_route: [state.address],
-      payload: response_payload
-    }
+    reply = Message.reply(message, state.address, response_payload)
 
     Logger.info("\nMESSAGE: #{inspect(message)}\nREPLY: #{inspect(reply)}")
     Router.route(reply)
@@ -142,6 +130,7 @@ defmodule Ockam.Router.Tests do
           UDPAddress.new({127, 0, 0, 1}, 4000),
           "printer"
         ],
+        return_route: [],
         payload: "hello"
       }
 
@@ -155,14 +144,15 @@ defmodule Ockam.Router.Tests do
 
       assert_receive({:trace, ^printer, :receive, result}, 1_000)
 
-      assert result == %{
-               version: 1,
+      udp_address = UDPAddress.new({127, 0, 0, 1}, 3000)
+
+      assert %{
                onward_route: ["printer"],
                payload: "hello",
                return_route: [
-                 UDPAddress.new({127, 0, 0, 1}, 3000)
+                 ^udp_address
                ]
-             }
+             } = result
     end
 
     test "Simple TCP Test", %{printer_pid: printer} do
@@ -210,7 +200,6 @@ defmodule Ockam.Router.Tests do
       assert_receive({:trace, ^printer, :receive, result}, 1_000)
 
       assert %{
-               version: 1,
                onward_route: ["printer"],
                payload: "hello",
                return_route: [_address]
@@ -257,7 +246,7 @@ defmodule Ockam.Router.Tests do
         Ockam.Node.stop("client_forwarder")
       end)
 
-      tcp_address = TCPAddress.new({127, 0, 0, 1}, 5000)
+      tcp_address = TCPAddress.new({127, 0, 0, 1}, 6000)
 
       # client
       request = %{
@@ -273,7 +262,7 @@ defmodule Ockam.Router.Tests do
       :erlang.trace(echo, true, [:receive])
       :erlang.trace(client_forwarder, true, [:receive])
 
-      assert {:ok, _listener_address_b} = TCP.start(listen: [port: 5000])
+      assert {:ok, _listener_address_b} = TCP.start(listen: [port: 6000])
 
       Ockam.Router.route(request)
 
@@ -294,7 +283,7 @@ defmodule Ockam.Router.Tests do
         1_000
       )
 
-      # tcp sends to echo on hub
+      # tcp sends to echo on remote node
       assert_receive(
         {:trace, ^echo, :receive,
          %{

@@ -5,14 +5,13 @@
 //! Ockam library.
 //!
 //! The main Ockam crate re-exports types defined in this crate.
-#![deny(
+#![deny(unsafe_code)]
+#![warn(
     missing_docs,
     trivial_casts,
     trivial_numeric_casts,
-    unsafe_code,
     unused_import_braces,
-    unused_qualifications,
-    warnings
+    unused_qualifications
 )]
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -58,25 +57,20 @@ mod responder;
 pub use responder::*;
 mod new_key_exchanger;
 pub use new_key_exchanger::*;
-use ockam_vault_core::{AsymmetricVault, Hasher, SecretVault, SymmetricVault};
+use ockam_core::vault::{AsymmetricVault, Hasher, SecretVault, SymmetricVault};
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ockam_core::AsyncTryClone;
     use ockam_key_exchange_core::{KeyExchanger, NewKeyExchanger};
-    use ockam_vault::SoftwareVault;
-    use ockam_vault_core::SecretVault;
-    use ockam_vault_sync_core::VaultSync;
+    use ockam_vault::Vault;
 
     #[allow(non_snake_case)]
     #[test]
     fn full_flow__correct_credentials__keys_should_match() {
-        let (mut ctx, mut exec) = ockam_node::start_node();
+        let (mut ctx, mut exec) = ockam_node::NodeBuilder::without_access_control().build();
         exec.execute(async move {
-            let mut vault = VaultSync::create(&ctx, SoftwareVault::default())
-                .await
-                .unwrap();
+            let vault = Vault::create();
 
             let key_exchanger = XXNewKeyExchanger::new(vault.async_try_clone().await.unwrap());
 
@@ -105,13 +99,13 @@ mod tests {
 
             assert_eq!(initiator.h(), responder.h());
 
-            let s1 = vault.secret_export(&initiator.encrypt_key()).await.unwrap();
-            let s2 = vault.secret_export(&responder.decrypt_key()).await.unwrap();
+            let s1 = vault.secret_export(initiator.encrypt_key()).await.unwrap();
+            let s2 = vault.secret_export(responder.decrypt_key()).await.unwrap();
 
             assert_eq!(s1, s2);
 
-            let s1 = vault.secret_export(&initiator.decrypt_key()).await.unwrap();
-            let s2 = vault.secret_export(&responder.encrypt_key()).await.unwrap();
+            let s1 = vault.secret_export(initiator.decrypt_key()).await.unwrap();
+            let s2 = vault.secret_export(responder.encrypt_key()).await.unwrap();
 
             assert_eq!(s1, s2);
 

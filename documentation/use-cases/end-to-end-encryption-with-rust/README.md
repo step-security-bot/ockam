@@ -62,7 +62,7 @@ intermediaries. Our application’s vulnerability surface quickly grows and beco
 
 ### Mutually Authenticated, End-to-End Encrypted Secure Channels with Ockam
 
-[Ockam](https://github.com/ockam-network/ockam) is a suite of programming libraries that make it simple
+[Ockam](https://github.com/build-trust/ockam) is a suite of programming libraries that make it simple
 for applications to create any number of lightweight, mutually-authenticated, end-to-end encrypted
 secure channels. These channels use cryptography to guarantee end-to-end integrity, authenticity, and
 confidentiality of messages.
@@ -105,7 +105,7 @@ cargo new --lib hello_ockam && cd hello_ockam && mkdir examples &&
 ```
 
 If the above instructions don't work on your machine please
-[post a question](https://github.com/ockam-network/ockam/discussions/1642),
+[post a question](https://github.com/build-trust/ockam/discussions/1642),
 we would love to help.
 
 ### Bob
@@ -113,9 +113,9 @@ we would love to help.
 Create a file at `examples/bob.rs` and copy the below code snippet to it.
 
 ```rust
-// examples/bob.rs
-use ockam::{Context, Entity, Result, TrustEveryonePolicy, Vault};
-use ockam::{RemoteForwarder, Routed, TcpTransport, Worker, TCP};
+use ockam::identity::{Identity, TrustEveryonePolicy};
+use ockam::{remote::RemoteForwarder, Routed, TcpTransport, Worker, TCP};
+use ockam::{vault::Vault, Context, Result};
 
 struct Echoer;
 
@@ -140,10 +140,10 @@ async fn main(ctx: Context) -> Result<()> {
     TcpTransport::create(&ctx).await?;
 
     // Create a Vault to safely store secret keys for Bob.
-    let vault = Vault::create(&ctx).await?;
+    let vault = Vault::create();
 
-    // Create an Entity to represent Bob.
-    let mut bob = Entity::create(&ctx, &vault).await?;
+    // Create an Identity to represent Bob.
+    let bob = Identity::create(&ctx, &vault).await?;
 
     // Create a secure channel listener for Bob that will wait for requests to
     // initiate an Authenticated Key Exchange.
@@ -160,7 +160,7 @@ async fn main(ctx: Context) -> Result<()> {
     // All messages that arrive at that forwarding address will be sent to this program
     // using the TCP connection we created as a client.
     let node_in_hub = (TCP, "1.node.ockam.network:4000");
-    let forwarder = RemoteForwarder::create(&ctx, node_in_hub, "listener").await?;
+    let forwarder = RemoteForwarder::create(&ctx, node_in_hub).await?;
     println!("\n[✓] RemoteForwarder was created on the node at: 1.node.ockam.network:4000");
     println!("Forwarding address for Bob is:");
     println!("{}", forwarder.remote_address());
@@ -181,8 +181,8 @@ Create a file at `examples/alice.rs` and copy the below code snippet to it.
 
 ```rust
 // examples/alice.rs
-use ockam::{route, Context, Entity, Result, TrustEveryonePolicy, Vault};
-use ockam::{TcpTransport, TCP};
+use ockam::identity::{Identity, TrustEveryonePolicy};
+use ockam::{route, vault::Vault, Context, Result, TcpTransport, TCP};
 use std::io;
 
 #[ockam::node]
@@ -191,10 +191,10 @@ async fn main(mut ctx: Context) -> Result<()> {
     TcpTransport::create(&ctx).await?;
 
     // Create a Vault to safely store secret keys for Alice.
-    let vault = Vault::create(&ctx).await?;
+    let vault = Vault::create();
 
-    // Create an Entity to represent Alice.
-    let mut alice = Entity::create(&ctx, &vault).await?;
+    // Create an Identity to represent Alice.
+    let alice = Identity::create(&ctx, &vault).await?;
 
     // This program expects that Bob has setup a forwarding address,
     // for his secure channel listener, on the Ockam node at 1.node.ockam.network:4000.
@@ -207,7 +207,7 @@ async fn main(mut ctx: Context) -> Result<()> {
 
     // Combine the tcp address of the node and the forwarding_address to get a route
     // to Bob's secure channel listener.
-    let route_to_bob_listener = route![(TCP, "1.node.ockam.network:4000"), forwarding_address];
+    let route_to_bob_listener = route![(TCP, "1.node.ockam.network:4000"), forwarding_address, "listener"];
 
     // As Alice, connect to Bob's secure channel listener, and perform an
     // Authenticated Key Exchange to establish an encrypted secure channel with Bob.
@@ -293,8 +293,8 @@ In the above example, we created a mutually authenticated, end-to-end encrypted 
 (excluding comments).
 
 Ockam combines proven cryptographic building blocks into a set of reusable protocols for distributed
-applications to communicate security and privately. The above example only scratched the surface of what
-is possible with the tools that our included in the `ockam` Rust crate.
+applications to communicate securely and privately. The above example only scratched the surface of what
+is possible with the tools that are included in the `ockam` Rust crate.
 
 To learn more, please see our [step-by-step guide](../../guides/rust#step-by-step).
 

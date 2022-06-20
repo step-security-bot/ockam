@@ -31,7 +31,6 @@ _granular authorization decisions about all incoming information and commands._
 * End-to-end encrypted, mutually authenticated _secure channels_.
 * Multi-hop, multi-transport, application layer routing.
 * Key establishment, rotation, and revocation - _for fleets, at scale_.
-* Entities and Identity profiles isolated by _privacy contexts_.
 * Lightweight, Concurrent, Stateful Workers that enable _simple APIs_.
 * Attribute-based Access Control - credentials with _selective disclosure_.
 * Add-ons for a variety of operating environments, transport protocols, and _cryptographic hardware_.
@@ -69,7 +68,7 @@ Add this to your `Cargo.toml`:
 
 ```
 [dependencies]
-ockam = "0.35.0"
+ockam = "0.61.0"
 ```
 
 ## License
@@ -85,15 +84,15 @@ This code is licensed under the terms of the [Apache License 2.0][license-link].
 [docs-link]: https://docs.rs/ockam
 
 [status-image]: https://img.shields.io/badge/Status-Preview-58E0C9.svg
-[status-link]: https://github.com/ockam-network/ockam/blob/develop/SECURITY.md
+[status-link]: https://github.com/build-trust/ockam/blob/develop/SECURITY.md
 
 [license-image]: https://img.shields.io/badge/License-Apache%202.0-green.svg
-[license-link]: https://github.com/ockam-network/ockam/blob/HEAD/LICENSE
+[license-link]: https://github.com/build-trust/ockam/blob/HEAD/LICENSE
 
 [discuss-image]: https://img.shields.io/badge/Discuss-On%20Github-ff70b4.svg
-[discuss-link]: https://github.com/ockam-network/ockam/discussions
+[discuss-link]: https://github.com/build-trust/ockam/discussions
 
-[e2ee-rust-guide]: https://github.com/ockam-network/ockam/tree/develop/documentation/use-cases/end-to-end-encryption-with-rust#readme
-[e2ee-kafka-guide]: https://github.com/ockam-network/ockam/tree/develop/documentation/use-cases/end-to-end-encryption-through-kafka#readme
-[step-by-step-rust-guide]: https://github.com/ockam-network/ockam/tree/develop/documentation/guides/rust#readme
-[secure-remote-access-tunnels]: https://github.com/ockam-network/ockam/tree/develop/documentation/use-cases/secure-remote-access-tunnels
+[e2ee-rust-guide]: https://github.com/build-trust/ockam/tree/develop/documentation/use-cases/end-to-end-encryption-with-rust#readme
+[e2ee-kafka-guide]: https://github.com/build-trust/ockam/tree/develop/documentation/use-cases/end-to-end-encryption-through-kafka#readme
+[step-by-step-rust-guide]: https://github.com/build-trust/ockam/tree/develop/documentation/guides/rust#readme
+[secure-remote-access-tunnels]: https://github.com/build-trust/ockam/tree/develop/documentation/use-cases/secure-remote-access-tunnels

@@ -12,11 +12,11 @@ defmodule Ockam.Stream.Client.BiDirectional do
 
   require Logger
 
-  @transport_message_encoder Ockam.Wire.Binary.V2
+  @consumer_address_prefix "STB_C_"
 
   @doc """
   Create bidirectional consumer.
-  Consumer will handle messages with handle_message/4
+  Consumer will handle messages with handle_message/5
 
   Returns consumer worker address
   """
@@ -30,7 +30,8 @@ defmodule Ockam.Stream.Client.BiDirectional do
         stream_options,
         stream_name: stream_name,
         client_id: subscription_id,
-        message_handler: message_handler
+        message_handler: message_handler,
+        address_prefix: @consumer_address_prefix
       )
 
     {:ok, _consumer_address} = Consumer.create(consumer_options)
@@ -53,10 +54,7 @@ defmodule Ockam.Stream.Client.BiDirectional do
           stream_options
         )
 
-      forwarded_message = %{
-        message
-        | return_route: [publisher_address | Message.return_route(message)]
-      }
+      forwarded_message = Message.trace(message, publisher_address)
 
       Ockam.Router.route(forwarded_message)
       :ok
@@ -78,7 +76,7 @@ defmodule Ockam.Stream.Client.BiDirectional do
   @bare_message {:struct, [return_stream: :string, message: :data]}
 
   def encode_message(%{return_stream: stream, message: message}) do
-    with {:ok, wire_message} <- Ockam.Wire.encode(@transport_message_encoder, message) do
+    with {:ok, wire_message} <- Ockam.Wire.encode(message) do
       {:ok,
        :bare.encode(
          %{return_stream: stream, message: wire_message},
@@ -90,7 +88,7 @@ defmodule Ockam.Stream.Client.BiDirectional do
   def decode_message(data) do
     case :bare.decode(data, @bare_message) do
       {:ok, %{return_stream: stream, message: wire_message}, ""} ->
-        case Ockam.Wire.decode(@transport_message_encoder, wire_message) do
+        case Ockam.Wire.decode(wire_message) do
           {:ok, message} ->
             {:ok, %{return_stream: stream, message: message}}
 

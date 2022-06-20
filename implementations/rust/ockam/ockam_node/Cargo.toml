@@ -1,43 +1,67 @@
 [package]
 authors = ["Ockam Developers"]
-categories = ["cryptography", "asynchronous", "authentication","embedded", "network-programming"]
+categories = [
+    "cryptography",
+    "asynchronous",
+    "authentication",
+    "embedded",
+    "network-programming",
+]
 description = "Ockam Node implementation crate"
-edition = "2018"
-homepage = "https://github.com/ockam-network/ockam"
-repository = "https://github.com/ockam-network/ockam/tree/develop/implementations/rust/ockam/ockam_node"
-keywords = ["ockam", "crypto", "cryptography", "network-programming", "encryption"]
+edition = "2021"
+homepage = "https://github.com/build-trust/ockam"
+repository = "https://github.com/build-trust/ockam/tree/develop/implementations/rust/ockam/ockam_node"
+keywords = [
+    "ockam",
+    "crypto",
+    "cryptography",
+    "network-programming",
+    "encryption",
+]
 license = "Apache-2.0"
 name = "ockam_node"
-version = "0.34.0"
+version = "0.58.0"
+publish = true
+rust-version = "1.56.0"
 
 [features]
 default = ["std"]
 
 # Feature (enabled by default): "std" enables functionality expected to
 # be available on a standard platform.
-std = ["ockam_core/std", "tokio", "tracing-subscriber", "alloc"]
+std = ["ockam_core/std", "tokio", "tracing-subscriber", "tracing-error", "alloc", "futures/std", "metrics"]
 
 # Feature: "no_std" enables functionality required for platforms
 # without the standard library.
-no_std = ["ockam_core/no_std", "ockam_node_no_std/no_std", "heapless"]
+no_std = ["ockam_core/no_std", "heapless"]
 
 # Feature: "alloc" enables support for heap allocation (implied by `feature = "std"`)
-alloc = ["ockam_core/alloc", "ockam_executor/alloc", "ockam_node_no_std/alloc"]
+alloc = ["ockam_core/alloc", "ockam_executor/alloc", "futures/alloc"]
 
 # Feature: "dump_internals" when set, will dump the internal state of
 # workers at startup via the trace! macro.
 dump_internals = []
+# TODO should these features be combined?
+metrics = []
 
 [dependencies]
-ockam_core = { path = "../ockam_core", version = "0.36.0", default_features = false }
-tokio = {version = "1.8", default-features = false, optional = true, features = ["sync", "time", "rt", "rt-multi-thread", "macros"]}
+ockam_core = { path = "../ockam_core", version = "^0.56.0", default_features = false }
+ockam_macros = { path = "../ockam_macros", version = "^0.16.0" }
+tokio = { version = "1.18", default-features = false, optional = true, features = [
+    "sync",
+    "time",
+    "rt",
+    "rt-multi-thread",
+    "macros",
+] }
+futures = { version = "0.3.21", default-features = false }
 tracing = { version = "0.1", default_features = false }
-tracing-subscriber = { version = "0.3", features = ["fmt", "env-filter"], optional = true }
-heapless = { version = "0.7", features = [ "mpmc_large" ], optional = true }
-ockam_node_no_std = { path = "../ockam_node_no_std", version = "0.11.0", default-features = false, optional = true }
-ockam_executor = { path = "../ockam_executor", version = "0.5.0", default-features = false, optional = true }
-
-[target.'cfg(target_arch = "arm")'.dependencies]
-# TODO replace cortex-m-semihosting with 'log'
-cortex-m = "0.7.3"
-cortex-m-semihosting = "0.3.7"
+tracing-error = { version = "0.2", optional = true }
+tracing-subscriber = { version = "0.3", features = [
+    "fmt",
+    "env-filter",
+], optional = true }
+heapless = { version = "0.7", features = ["mpmc_large"], optional = true }
+ockam_executor = { path = "../ockam_executor", version = "^0.24.0", default-features = false, optional = true }
+serde_bare = { version = "0.5.0", default-features = false }
+serde = { version = "1.0", default-features = false, features = ["derive"] }

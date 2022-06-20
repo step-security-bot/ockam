@@ -2,7 +2,7 @@ use core::time::Duration;
 use ockam::compat::collections::VecDeque;
 use ockam::compat::rand::{thread_rng, Rng};
 use ockam::{
-    route, Address, Context, DelayedEvent, Entity, Result, Routed, TcpTransport,
+    route, Address, Context, DelayedEvent, Identity, Result, Routed, TcpTransport,
     TrustEveryonePolicy, Vault, Worker,
 };
 use std::env;
@@ -188,7 +188,7 @@ async fn main(ctx: Context) -> Result<()> {
     let config = Config::new();
 
     let vault = Vault::create(&ctx).await?;
-    let mut hub = Entity::create(&ctx, &vault)?;
+    let mut hub = Identity::create(&ctx, &vault)?;
 
     hub.create_secure_channel_listener("secure_channel_listener_service", TrustEveryonePolicy)?;
 
@@ -197,7 +197,7 @@ async fn main(ctx: Context) -> Result<()> {
     let available_inlet_ports =
         (config.available_inlet_port_start..config.available_inlet_port_end + 1).collect();
 
-    let internal_address = Address::random(0);
+    let internal_address = Address::random_local();
     let fabric_worker = TcpInletService::new(
         tcp.clone(),
         internal_address.clone(),

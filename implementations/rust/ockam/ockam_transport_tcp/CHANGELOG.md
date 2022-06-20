@@ -1,9 +1,239 @@
 # Changelog
+All notable changes to this project will be documented in this file.
 
-All notable changes to this crate will be documented in this file.
-
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## unreleased
+
+### Added
+
+- Add `#[ockam::node]` macro attribute `access_control`
+
+### Changed
+
+- Implement initial access control prototype
+- Refinements to initial access control prototype
+
+## 0.55.0 - 2022-06-06
+
+### Changed
+
+- Rename new_context to new_detached
+- Updated dependencies
+
+### Removed
+
+- Remove messaging cycle from `TCP Portal`
+
+## 0.54.0 - 2022-05-23
+
+### Changed
+
+- Return socket address when starting a transport listener
+- Code block and imports
+- Updated dependencies
+
+### Fixed
+
+- Fix flaky transport tests
+- Fix tcp router race condition
+
+## 0.53.0 - 2022-05-09
+
+### Changed
+
+- Updated dependencies
+
+## 0.52.0 - 2022-05-05
+
+### Added
+
+- Add delay to tcp portal
+
+### Changed
+
+- Log and ignore error while sending disconnect from portal
+- Use 10kb buffer for tcp portal
+- Updated dependencies
+
+### Fixed
+
+- Fix tcp receiver heartbeat handling
+
+## 0.51.0 - 2022-05-04
+
+### Changed
+
+- Updated dependencies
+
+### Fixed
+
+- Reduce `MAX_PAYLOAD_SIZE` back to 256
+
+## 0.50.0 - 2022-05-04
+
+### Changed
+
+- Increase buffer size for tcp portal
+- Updated dependencies
+
+## 0.49.0 - 2022-04-25
+
+### Added
+
+- Add tests for `ockam_transport_tcp`
+- Add documentation for `ockam_transport_tcp`
+- Add "crate" attribute to async_try_clone_derive macro
+
+### Changed
+
+- Friendlify code organisation of `ockam_transport_tcp::TcpRouter`
+- Friendlify code organisation of `ockam_transport_tcp::TcpRouterHandle`
+- Friendlify code organisation of `ockam_transport_tcp::TcpListenProcessor`
+- Friendlify code organisation of `ockam_transport_tcp::TcpSendWorker`
+- Move `TcpRouter` into its own file
+- Updated dependencies
+
+### Fixed
+
+- Fixes #2630
+
+## 0.48.0 - 2022-04-19
+
+### Changed
+
+- Clean up ockam_core import paths
+- Run rustfmt
+- Updated dependencies
+
+### Fixed
+
+- Errors: fix ockam_transport_tcp
+- Fix various clippy and rustfmt lints
+
+## 0.47.0 - 2022-04-11
+
+### Added
+
+- Add `Tcp` disconnect test
+
+### Changed
+
+- Implement tcp disconnection
+- Implement manual disconnection for `Tcp`
+- Implemented tcp connection to already connected ip under different hostname
+- Updated dependencies
+
+### Fixed
+
+- Fix clippy warnings
+
+### Removed
+
+- Remove outdated tcprouter docs
+
+## 0.46.0 - 2022-04-04
+
+### Changed
+
+- Updated dependencies
+
+## 0.45.0 - 2022-03-28
+
+### Changed
+
+- Rename heartbeat to delayed event
+- Updated dependencies
+
+## 0.42.0 - 2022-02-22
+
+### Fixed
+
+- Fix message type in tcp sender
+- Fix `TcpTransport` initialization race condition
+- Fix tcp send_receive test
+
+## 0.41.0 - 2022-02-08
+
+### Changed
+
+- Update crate edition to 2021
+
+## 0.38.0 - 2022-01-10
+
+### Added
+
+- Add no_main arg support to ockam::node macro
+
+### Changed
+
+- Improve formatting of `Cargo.toml`s  and add `rust-version` 1.56.0
+
+### Removed
+
+- Delete the ockam_node_no_std crate
+
+## 0.37.0 - 2021-12-13
+
+### Added
+
+- Add basic portal test
+- Add tcp heartbeats
+
+### Changed
+
+- Upgrade portals flow
+- Adjust portals delays to avoid race conditions
+- Stop tcp worker on hearbeat failure
+
+### Fixed
+
+- Fix clippy warnings
+
+## 0.36.0 - 2021-12-06
+
+### Changed
+
+- Merge macro crates
+
+### Fixed
+
+- Use `write_all` instead of `write` for tcp
+
+### Removed
+
+- Remove symlinks to `DEVELOP.md` and `LICENSE`
+- Remove need for separate macro crates
+
+## v0.35.0 - 2021-11-22
+
+
+### Changed
+
+- Deny warnings in ci, not local development
+
+
+## v0.34.0 - 2021-11-15
+### Changed
+- Dependencies updated
+
+## v0.33.0 - 2021-11-08
+### Changed
+- Dependencies updated
+- use cluster mechanism for tcp transport workers
+- replace `AsyncTryClone` trait impls with `#[derive(AsyncTryClone)]` wherever applicable
+
+## v0.32.0 - 2021-11-01
+### Changed
+- explicitly derive message trait
+- replace std::sleep with tokio in tcp test
+- fix tcp lazy connection ordering
+- Dependencies updated
+
+## v0.31.0 - 2021-10-26
+### Changed
+- Dependencies updated
 
 ## v0.30.0 - 2021-10-25
 ### Changed

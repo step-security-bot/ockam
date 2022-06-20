@@ -43,7 +43,7 @@ Add the following code to this file:
 ```rust
 // examples/10-secure-channel-via-streams-responder.rs
 use hello_ockam::Echoer;
-use ockam::{route, stream::Stream, Context, Result, SecureChannel, TcpTransport, Vault, TCP};
+use ockam::{channel::SecureChannel, route, stream::Stream, vault::Vault, Context, Result, TcpTransport, TCP};
 
 #[ockam::node]
 async fn main(ctx: Context) -> Result<()> {
@@ -53,7 +53,7 @@ async fn main(ctx: Context) -> Result<()> {
     let hub_node_tcp_address = "<Your node Address copied from hub.ockam.network>";
 
     // Create a vault
-    let vault = Vault::create(&ctx).await?;
+    let vault = Vault::create();
 
     // Create a secure channel listener at address "secure_channel_listener"
     SecureChannel::create_listener(&ctx, "secure_channel_listener", &vault).await?;
@@ -92,7 +92,7 @@ Add the following code to this file:
 
 ```rust
 // examples/10-secure-channel-via-streams-initiator.rs
-use ockam::{route, stream::Stream, Context, Result, SecureChannel, TcpTransport, Vault, TCP};
+use ockam::{channel::SecureChannel, route, stream::Stream, vault::Vault, Context, Result, TcpTransport, TCP};
 
 #[ockam::node]
 async fn main(mut ctx: Context) -> Result<()> {
@@ -102,7 +102,7 @@ async fn main(mut ctx: Context) -> Result<()> {
     let hub_node_tcp_address = "<Your node Address copied from hub.ockam.network>";
 
     // Create a vault
-    let vault = Vault::create(&ctx).await?;
+    let vault = Vault::create();
 
     // Create a stream client
     let (sender, _receiver) = Stream::new(&ctx)

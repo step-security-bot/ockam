@@ -38,7 +38,8 @@ Add the following code to this file:
 // It then runs forever waiting for messages.
 
 use hello_ockam::Echoer;
-use ockam::{Context, Entity, Result, TcpTransport, TrustEveryonePolicy, Vault};
+use ockam::identity::{Identity, TrustEveryonePolicy};
+use ockam::{vault::Vault, Context, Result, TcpTransport};
 
 #[ockam::node]
 async fn main(ctx: Context) -> Result<()> {
@@ -51,10 +52,10 @@ async fn main(ctx: Context) -> Result<()> {
     tcp.listen("127.0.0.1:4000").await?;
 
     // Create a Vault to safely store secret keys for Bob.
-    let vault = Vault::create(&ctx).await?;
+    let vault = Vault::create();
 
-    // Create an Entity to represent Bob.
-    let mut bob = Entity::create(&ctx, &vault).await?;
+    // Create an Identity to represent Bob.
+    let bob = Identity::create(&ctx, &vault).await?;
 
     // Create a secure channel listener for Bob that will wait for requests to
     // initiate an Authenticated Key Exchange.
@@ -115,8 +116,8 @@ Add the following code to this file:
 // This node creates an end-to-end encrypted secure channel over two tcp transport hops.
 // It then routes a message, to a worker on a different node, through this encrypted channel.
 
-use ockam::{route, Context, Result, TrustEveryonePolicy, Vault};
-use ockam::{Entity, TcpTransport, TCP};
+use ockam::identity::{Identity, TrustEveryonePolicy};
+use ockam::{route, vault::Vault, Context, Result, TcpTransport, TCP};
 
 #[ockam::node]
 async fn main(mut ctx: Context) -> Result<()> {
@@ -124,10 +125,10 @@ async fn main(mut ctx: Context) -> Result<()> {
     TcpTransport::create(&ctx).await?;
 
     // Create a Vault to safely store secret keys for Alice.
-    let vault = Vault::create(&ctx).await?;
+    let vault = Vault::create();
 
-    // Create an Entity to represent Alice.
-    let mut alice = Entity::create(&ctx, &vault).await?;
+    // Create an Identity to represent Alice.
+    let alice = Identity::create(&ctx, &vault).await?;
 
     // Connect to a secure channel listener and perform a handshake.
     let r = route![(TCP, "localhost:3000"), (TCP, "localhost:4000"), "bob_listener"];

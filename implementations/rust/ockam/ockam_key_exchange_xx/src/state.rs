@@ -1,11 +1,10 @@
 use crate::{XXError, XXVault, AES_GCM_TAGSIZE, SHA256_SIZE};
-use ockam_core::compat::vec::Vec;
-use ockam_core::Result;
-use ockam_key_exchange_core::CompletedKeyExchange;
-use ockam_vault_core::{
-    PublicKey, Secret, SecretAttributes, SecretPersistence, SecretType, AES256_SECRET_LENGTH,
+use ockam_core::vault::{
+    KeyId, PublicKey, SecretAttributes, SecretPersistence, SecretType, AES256_SECRET_LENGTH,
     CURVE25519_PUBLIC_LENGTH, CURVE25519_SECRET_LENGTH,
 };
+use ockam_core::{compat::vec::Vec, Result};
+use ockam_key_exchange_core::CompletedKeyExchange;
 
 mod dh_state;
 pub(crate) use dh_state::*;
@@ -13,9 +12,9 @@ pub(crate) use dh_state::*;
 /// Represents the XX Handshake
 pub(crate) struct State<V: XXVault> {
     run_prologue: bool,
-    identity_key: Option<Secret>,
+    identity_key: Option<KeyId>,
     identity_public_key: Option<PublicKey>,
-    ephemeral_secret: Option<Secret>,
+    ephemeral_secret: Option<KeyId>,
     ephemeral_public: Option<PublicKey>,
     _remote_static_public_key: Option<PublicKey>,
     remote_ephemeral_public_key: Option<PublicKey>,
@@ -68,7 +67,7 @@ impl<V: XXVault> State<V> {
     /// Create a new `HandshakeState` starting with the prologue
     async fn prologue(&mut self) -> Result<()> {
         let attributes = SecretAttributes::new(
-            SecretType::Curve25519,
+            SecretType::X25519,
             SecretPersistence::Ephemeral,
             CURVE25519_SECRET_LENGTH,
         );
@@ -161,7 +160,7 @@ impl<V: XXVault> State<V> {
     }
 
     /// Split step in Noise protocol
-    async fn split(&mut self) -> Result<(Secret, Secret)> {
+    async fn split(&mut self) -> Result<(KeyId, KeyId)> {
         let ck = self.dh_state.ck().ok_or(XXError::InvalidState)?;
 
         let symmetric_key_info = self.get_symmetric_key_type_and_length();
@@ -186,7 +185,7 @@ impl<V: XXVault> State<V> {
     }
 
     /// Set this state up to send and receive messages
-    fn finalize(self, encrypt_key: Secret, decrypt_key: Secret) -> Result<CompletedKeyExchange> {
+    fn finalize(self, encrypt_key: KeyId, decrypt_key: KeyId) -> Result<CompletedKeyExchange> {
         let h = self.h.ok_or(XXError::InvalidState)?;
 
         Ok(CompletedKeyExchange::new(h, encrypt_key, decrypt_key))
@@ -213,10 +212,10 @@ impl<V: XXVault> State<V> {
             .clone();
 
         let payload = payload.as_ref();
-        self.h = Some(self.mix_hash(ephemeral_public_key.as_ref()).await?);
+        self.h = Some(self.mix_hash(ephemeral_public_key.data()).await?);
         self.h = Some(self.mix_hash(payload).await?);
 
-        let mut output = ephemeral_public_key.as_ref().to_vec();
+        let mut output = ephemeral_public_key.data().to_vec();
         output.extend_from_slice(payload);
         Ok(output)
     }
@@ -234,18 +233,18 @@ impl<V: XXVault> State<V> {
         let mut index_l = 0;
         let mut index_r = public_key_size;
         let re = &message[..index_r];
-        let re = PublicKey::new(re.to_vec());
+        let re = PublicKey::new(re.to_vec(), SecretType::X25519);
         index_l += public_key_size;
         index_r += public_key_size + AES_GCM_TAGSIZE;
         let encrypted_rs_and_tag = &message[index_l..index_r];
         let encrypted_payload_and_tag = &message[index_r..];
 
-        self.h = Some(self.mix_hash(re.as_ref()).await?);
+        self.h = Some(self.mix_hash(re.data()).await?);
         self.dh_state.dh(&ephemeral_secret_handle, &re).await?;
         self.remote_ephemeral_public_key = Some(re);
         let (rs, h) = self.decrypt_and_mix_hash(encrypted_rs_and_tag).await?;
         self.h = Some(h);
-        let rs = PublicKey::new(rs);
+        let rs = PublicKey::new(rs, SecretType::X25519);
         self.dh_state.dh(&ephemeral_secret_handle, &rs).await?;
         self._remote_static_public_key = Some(rs);
         self.nonce = 0;
@@ -270,8 +269,7 @@ impl<V: XXVault> State<V> {
             .clone()
             .ok_or(XXError::InvalidState)?;
 
-        let (mut encrypted_s_and_tag, h) =
-            self.encrypt_and_mix_hash(static_public.as_ref()).await?;
+        let (mut encrypted_s_and_tag, h) = self.encrypt_and_mix_hash(static_public.data()).await?;
         self.h = Some(h);
         self.dh_state
             .dh(&static_secret, &remote_ephemeral_public_key)
@@ -304,8 +302,8 @@ impl<V: XXVault> State<V> {
         }
 
         let re = &message_1[..public_key_size];
-        let re = PublicKey::new(re.to_vec());
-        self.h = Some(self.mix_hash(re.as_ref()).await?);
+        let re = PublicKey::new(re.to_vec(), SecretType::X25519);
+        self.h = Some(self.mix_hash(re.data()).await?);
         self.h = Some(self.mix_hash(&message_1[public_key_size..]).await?);
         self.remote_ephemeral_public_key = Some(re);
         Ok(message_1[public_key_size..].to_vec())
@@ -325,13 +323,12 @@ impl<V: XXVault> State<V> {
             .clone()
             .ok_or(XXError::InvalidState)?;
 
-        self.h = Some(self.mix_hash(ephemeral_public.as_ref()).await?);
+        self.h = Some(self.mix_hash(ephemeral_public.data()).await?);
         self.dh_state
             .dh(&ephemeral_secret, &remote_ephemeral_public_key)
             .await?;
 
-        let (mut encrypted_s_and_tag, h) =
-            self.encrypt_and_mix_hash(static_public.as_ref()).await?;
+        let (mut encrypted_s_and_tag, h) = self.encrypt_and_mix_hash(static_public.data()).await?;
         self.h = Some(h);
         self.dh_state
             .dh(&static_secret, &remote_ephemeral_public_key)
@@ -341,7 +338,7 @@ impl<V: XXVault> State<V> {
         self.h = Some(h);
         self.nonce += 1;
 
-        let mut output = ephemeral_public.as_ref().to_vec();
+        let mut output = ephemeral_public.data().to_vec();
         output.append(&mut encrypted_s_and_tag);
         output.append(&mut encrypted_payload_and_tag);
         Ok(output)
@@ -364,7 +361,7 @@ impl<V: XXVault> State<V> {
             .decrypt_and_mix_hash(&message_3[..public_key_size + AES_GCM_TAGSIZE])
             .await?;
         self.h = Some(h);
-        let rs = PublicKey::new(rs);
+        let rs = PublicKey::new(rs, SecretType::X25519);
         self.dh_state.dh(ephemeral_secret, &rs).await?;
         self.nonce = 0;
         let (payload, h) = self
@@ -387,22 +384,19 @@ impl<V: XXVault> State<V> {
 mod tests {
     use crate::state::{DhState, State};
     use crate::{Initiator, Responder, XXVault};
-    use ockam_core::hex::{decode, encode};
-    use ockam_key_exchange_core::KeyExchanger;
-    use ockam_vault::SoftwareVault;
-    use ockam_vault_core::{
+    use hex::{decode, encode};
+    use ockam_core::vault::{
         SecretAttributes, SecretPersistence, SecretType, SecretVault, SymmetricVault,
         CURVE25519_SECRET_LENGTH,
     };
-    use ockam_vault_sync_core::VaultSync;
+    use ockam_key_exchange_core::KeyExchanger;
+    use ockam_vault::Vault;
 
     #[test]
     fn prologue() {
-        let (mut ctx, mut exec) = ockam_node::start_node();
+        let (mut ctx, mut exec) = ockam_node::NodeBuilder::without_access_control().build();
         exec.execute(async move {
-            let mut vault = VaultSync::create(&ctx, SoftwareVault::default())
-                .await
-                .unwrap();
+            let vault = Vault::create();
 
             let exp_h = [
                 93, 247, 43, 103, 185, 101, 173, 209, 22, 143, 10, 108, 117, 109, 242, 28, 32, 79,
@@ -443,11 +437,9 @@ mod tests {
         const MSG_3_CIPHERTEXT: &str = "e610eadc4b00c17708bf223f29a66f02342fbedf6c0044736544b9271821ae40e70144cecd9d265dffdc5bb8e051c3f83db32a425e04d8f510c58a43325fbc56";
         const MSG_3_PAYLOAD: &str = "";
 
-        let (mut ctx, mut exec) = ockam_node::start_node();
+        let (mut ctx, mut exec) = ockam_node::NodeBuilder::without_access_control().build();
         exec.execute(async move {
-            let mut vault = VaultSync::create(&ctx, SoftwareVault::default())
-                .await
-                .unwrap();
+            let mut vault = Vault::create();
 
             mock_handshake(
                 &mut vault,
@@ -536,11 +528,9 @@ mod tests {
         const MSG_3_PAYLOAD: &str = "746573745f6d73675f32";
         const MSG_3_CIPHERTEXT: &str = "e610eadc4b00c17708bf223f29a66f02342fbedf6c0044736544b9271821ae40232c55cd96d1350af861f6a04978f7d5e070c07602c6b84d25a331242a71c50ae31dd4c164267fd48bd2";
 
-        let (mut ctx, mut exec) = ockam_node::start_node();
+        let (mut ctx, mut exec) = ockam_node::NodeBuilder::without_access_control().build();
         exec.execute(async move {
-            let mut vault = VaultSync::create(&ctx, SoftwareVault::default())
-                .await
-                .unwrap();
+            let mut vault = Vault::create();
 
             mock_handshake(
                 &mut vault,
@@ -578,11 +568,9 @@ mod tests {
         const MSG_3_CIPHERTEXT: &str = "e610eadc4b00c17708bf223f29a66f02342fbedf6c0044736544b9271821ae40e70144cecd9d265dffdc5bb8e051c3f83db32a425e04d8f510c58a43325fbc56";
         const MSG_3_PAYLOAD: &str = "";
 
-        let (mut ctx, mut exec) = ockam_node::start_node();
+        let (mut ctx, mut exec) = ockam_node::NodeBuilder::without_access_control().build();
         exec.execute(async move {
-            let mut vault = VaultSync::create(&ctx, SoftwareVault::default())
-                .await
-                .unwrap();
+            let mut vault = Vault::create();
 
             let initiator = mock_prologue(&mut vault, INIT_STATIC, INIT_EPH).await;
             let responder = mock_prologue(&mut vault, RESP_STATIC, RESP_EPH).await;
@@ -662,7 +650,7 @@ mod tests {
         ephemeral_private: &str,
     ) -> State<V> {
         let attributes = SecretAttributes::new(
-            SecretType::Curve25519,
+            SecretType::X25519,
             SecretPersistence::Ephemeral,
             CURVE25519_SECRET_LENGTH,
         );

@@ -1,0 +1,61 @@
+name: All
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/all.yml'
+      - '**.gradle'
+      - 'tools/gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/actions/**'
+  push:
+    paths:
+      - '.github/workflows/all.yml'
+      - '**.gradle'
+      - 'tools/gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/actions/**'
+  schedule:
+    - cron: '0 1 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: All - Build
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/cargo_home_cache
+      - uses: ./.github/actions/cargo_target_dir_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: ./gradlew build -Pmode=release
+      - uses: ./.github/actions/cargo_target_dir_pre_cache
+
+  list_gradle_tasks:
+    name: All - List Gradle Tasks
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, macos-10.15, windows-2019]
+        java: [8, 11, 16, 17]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: actions/setup-java@860f60056505705214d223b91ed7a30f173f6142
+        with:
+          distribution: 'temurin'
+          check-latest: true
+          java-version: ${{ matrix.java }}
+      - uses: ./.github/actions/gradle_cache
+      - run: ./gradlew tasks --all

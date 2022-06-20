@@ -1,8 +1,8 @@
-use crate::{spawn, Address, Context, Message, Result, Route};
+use crate::{Address, Context, Message, Result, Route};
 use core::time::Duration;
 
 /// Send a delayed event to a worker
-pub struct DelayedEvent<M: Message> {
+pub(crate) struct DelayedEvent<M: Message> {
     route: Route,
     ctx: Context,
     d: Duration,
@@ -11,8 +11,8 @@ pub struct DelayedEvent<M: Message> {
 
 impl<M: Message> DelayedEvent<M> {
     /// Create a new 100ms delayed message event
-    pub async fn new(ctx: &Context, route: Route, msg: M) -> Result<Self> {
-        let child_ctx = ctx.new_context(Address::random(0)).await?;
+    pub(crate) async fn new(ctx: &Context, route: Route, msg: M) -> Result<Self> {
+        let child_ctx = ctx.new_detached(Address::random_local()).await?;
 
         debug!(
             "Creating a delayed event with address '{}'",
@@ -28,38 +28,22 @@ impl<M: Message> DelayedEvent<M> {
     }
 
     /// Adjust the delay time with a [`Duration`](core::time::Duration)
-    pub fn with_duration(self, d: Duration) -> Self {
+    pub(crate) fn with_duration(self, d: Duration) -> Self {
         Self { d, ..self }
     }
 
-    /// Adjust the delay time in milliseconds
-    pub fn with_millis(self, millis: u64) -> Self {
-        Self {
-            d: Duration::from_millis(millis),
-            ..self
-        }
-    }
-
     /// Adjust the delay time in seconds
-    pub fn with_seconds(self, secs: u64) -> Self {
+    pub(crate) fn with_seconds(self, secs: u64) -> Self {
         Self {
             d: Duration::from_secs(secs),
             ..self
         }
     }
 
-    /// Adjust the delay time in minutes
-    pub fn with_minutes(self, mins: u64) -> Self {
-        Self {
-            d: Duration::from_secs(mins * 60),
-            ..self
-        }
-    }
-
     /// Run this delayed event
-    pub fn spawn(self) {
+    pub(crate) fn spawn(self) {
         let Self { route, ctx, d, msg } = self;
-        spawn(async move {
+        ockam_node::spawn(async move {
             ctx.sleep(d).await;
             if let Err(e) = ctx.send(route, msg).await {
                 error!("Failed to send delayed message: {}", e);

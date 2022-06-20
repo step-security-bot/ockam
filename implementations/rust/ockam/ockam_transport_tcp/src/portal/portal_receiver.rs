@@ -1,28 +1,34 @@
-use crate::PortalMessage;
-use ockam_core::async_trait;
+use crate::{PortalInternalMessage, PortalMessage};
+use ockam_core::compat::vec::Vec;
+use ockam_core::{async_trait, Encodable, LocalMessage, Route, TransportMessage};
 use ockam_core::{route, Address, Processor, Result};
 use ockam_node::Context;
 use tokio::{io::AsyncReadExt, net::tcp::OwnedReadHalf};
-use tracing::info;
+use tracing::{error, warn};
 
-const BUFFER_SIZE: usize = 256;
+const MAX_PAYLOAD_SIZE: usize = 48 * 1024;
 
-/// A TCP receiving message worker
+/// A TCP Portal receiving message processor
 ///
-/// Create this worker type by calling
-/// [`start_tcp_worker`](crate::start_tcp_worker)!
-///
-/// This half of the worker is created when spawning a new connection
-/// worker pair, and listens for incoming TCP packets, to relay into
-/// the node message system.
+/// TCP Portal receiving message processor are created by
+/// `TcpPortalWorker` after a call is made to
+/// [`TcpPortalWorker::start_receiver`](crate::TcpPortalWorker::start_receiver)
 pub(crate) struct TcpPortalRecvProcessor {
+    buf: Vec<u8>,
     rx: OwnedReadHalf,
     sender_address: Address,
+    onward_route: Route,
 }
 
 impl TcpPortalRecvProcessor {
-    pub fn new(rx: OwnedReadHalf, sender_address: Address) -> Self {
-        Self { rx, sender_address }
+    /// Create a new `TcpPortalRecvProcessor`
+    pub fn new(rx: OwnedReadHalf, sender_address: Address, onward_route: Route) -> Self {
+        Self {
+            buf: Vec::with_capacity(MAX_PAYLOAD_SIZE),
+            rx,
+            sender_address,
+            onward_route,
+        }
     }
 }
 
@@ -30,34 +36,50 @@ impl TcpPortalRecvProcessor {
 impl Processor for TcpPortalRecvProcessor {
     type Context = Context;
 
-    // We are using the initialize function here to run a custom loop,
-    // while never listening for messages sent to our address
-    //
-    // Note: when the loop exits, we _must_ call stop_worker(..) on
-    // Context not to spawn a zombie task.
-    //
-    // Also: we must stop the TcpReceive loop when the worker gets
-    // killed by the user or node.
     async fn process(&mut self, ctx: &mut Context) -> Result<bool> {
-        let mut buf = [0u8; BUFFER_SIZE];
-        let len = match self.rx.read(&mut buf).await {
+        self.buf.clear();
+
+        let _len = match self.rx.read_buf(&mut self.buf).await {
             Ok(len) => len,
-            Err(_e) => {
-                info!("Tcp Portal connection was closed; dropping stream",);
+            Err(err) => {
+                error!("Tcp Portal connection read failed with error: {}", err);
                 return Ok(false);
             }
         };
 
-        if len != 0 {
-            let mut vec = vec![0u8; len];
-            vec.copy_from_slice(&buf[..len]);
-            let msg = PortalMessage { binary: vec };
+        if self.buf.is_empty() {
+            // Notify Sender that connection was closed
+            if let Err(err) = ctx
+                .send(
+                    route![self.sender_address.clone()],
+                    PortalInternalMessage::Disconnect,
+                )
+                .await
+            {
+                warn!(
+                    "Error notifying Tcp Portal Sender about dropped connection {}",
+                    err
+                );
+            }
 
-            // Forward the message to the next hop in the route
-            ctx.send(route![self.sender_address.clone()], msg).await?;
-        } else {
-            info!("Tcp Portal connection is empty; dropping stream",);
+            let msg = TransportMessage::v1(
+                self.onward_route.clone(),
+                self.sender_address.clone(),
+                PortalMessage::Disconnect.encode()?,
+            );
+            ctx.forward(LocalMessage::new(msg, vec![])).await?;
+
             return Ok(false);
+        }
+
+        // Loop just in case buf was extended (should not happen though)
+        for chunk in self.buf.chunks(MAX_PAYLOAD_SIZE) {
+            let msg = TransportMessage::v1(
+                self.onward_route.clone(),
+                self.sender_address.clone(),
+                PortalMessage::Payload(chunk.to_vec()).encode()?,
+            );
+            ctx.forward(LocalMessage::new(msg, vec![])).await?;
         }
 
         Ok(true)

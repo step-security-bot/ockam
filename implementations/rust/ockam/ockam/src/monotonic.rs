@@ -1,14 +1,21 @@
-#![allow(unused)]
 use core::sync::atomic::{AtomicUsize, Ordering};
 
-/// A simple monotonic ID generator
+/// A simple monotonic ID generator. Not public.
 pub(crate) struct Monotonic {
     inner: AtomicUsize,
 }
 
 impl Monotonic {
+    /// Create a new monotonic ID counter from 0
     pub(crate) fn new() -> Self {
-        Monotonic { inner: 0.into() }
+        Self::from(0)
+    }
+
+    /// Create a new monotonic ID counter from a starting point
+    ///
+    /// This is useful when dealing with 1-indexed systems
+    pub(crate) fn from(u: usize) -> Self {
+        Monotonic { inner: u.into() }
     }
 
     pub(crate) fn next(&self) -> usize {

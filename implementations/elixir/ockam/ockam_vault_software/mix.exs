@@ -5,7 +5,7 @@ defmodule Ockam.Vault.Software.MixProject do
 
   @elixir_requirement "~> 1.10"
 
-  @ockam_github_repo "https://github.com/ockam-network/ockam"
+  @ockam_github_repo "https://github.com/build-trust/ockam"
   @ockam_github_repo_path "implementations/elixir/ockam/ockam_vault_software"
 
   def project do
@@ -46,7 +46,7 @@ defmodule Ockam.Vault.Software.MixProject do
   defp deps do
     [
       {:ex_doc, "~> 0.25", only: :dev, runtime: false},
-      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.1", only: [:dev], runtime: false}
     ]
   end

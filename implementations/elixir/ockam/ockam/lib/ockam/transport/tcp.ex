@@ -12,6 +12,12 @@ defmodule Ockam.Transport.TCP do
 
   require Logger
 
+  @packed_size_limit 65_000
+
+  def packed_size_limit() do
+    @packed_size_limit
+  end
+
   def child_spec(options) do
     id = id(options)
 
@@ -43,8 +49,12 @@ defmodule Ockam.Transport.TCP do
   """
   @spec start(Keyword.t()) :: :ignore | {:error, any} | {:ok, any}
   def start(options \\ []) do
+    client_options = Keyword.get(options, :client_options, [])
     ## TODO: do we want to stop transports?
-    Router.set_message_handler(TCPAddress.type(), &handle_message/1)
+    Router.set_message_handler(
+      TCPAddress.type(),
+      {__MODULE__, :handle_transport_message, [client_options]}
+    )
 
     case Keyword.fetch(options, :listen) do
       {:ok, listen} -> Listener.start_link(listen)
@@ -52,17 +62,17 @@ defmodule Ockam.Transport.TCP do
     end
   end
 
-  @spec handle_message(Ockam.Message.t()) :: :ok | {:error, any()}
-  defp handle_message(message) do
-    case get_destination_and_onward_route(message) do
-      {:ok, destination, onward_route} ->
-        ## Remove tcp address from onward route
-        message_to_forward =
-          Map.put(create_outgoing_message(message), :onward_route, onward_route)
-
+  @spec handle_transport_message(Ockam.Message.t(), Keyword.t()) :: :ok | {:error, any()}
+  def handle_transport_message(message, client_options) do
+    case get_destination(message) do
+      {:ok, destination} ->
         ## TODO: reuse clients when using tcp address
-        with {:ok, client_address} <- Client.create(destination: destination) do
-          Ockam.Node.send(client_address, message_to_forward)
+        with {:ok, client_address} <-
+               Client.create([
+                 {:destination, destination},
+                 {:restart_type, :temporary} | client_options
+               ]) do
+          Ockam.Node.send(client_address, message)
         end
 
       e ->
@@ -72,15 +82,12 @@ defmodule Ockam.Transport.TCP do
     end
   end
 
-  defp get_destination_and_onward_route(message) do
-    {dest_address, onward_route} =
-      message
-      |> Message.onward_route()
-      |> List.pop_at(0)
+  defp get_destination(message) do
+    [dest_address | _onward_route] = Message.onward_route(message)
 
     with true <- TCPAddress.is_tcp_address(dest_address),
          {:ok, destination} <- TCPAddress.to_host_port(dest_address) do
-      {:ok, destination, onward_route}
+      {:ok, destination}
     else
       false ->
         {:error, {:invalid_address_type, dest_address}}
@@ -88,13 +95,5 @@ defmodule Ockam.Transport.TCP do
       {:error, error} ->
         {:error, error}
     end
-  end
-
-  defp create_outgoing_message(message) do
-    %{
-      onward_route: Message.onward_route(message),
-      payload: Message.payload(message),
-      return_route: Message.return_route(message)
-    }
   end
 end

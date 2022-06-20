@@ -1,4 +1,7 @@
-use ockam_core::Error;
+use ockam_core::{
+    errcode::{Kind, Origin},
+    Error,
+};
 use std::ffi::CString;
 use std::os::raw::c_char;
 
@@ -29,24 +32,11 @@ impl FfiOckamError {
     }
 }
 
-impl From<Error> for FfiOckamError {
-    fn from(err: Error) -> Self {
-        // TODO: Should this graciously fail?
-        let heaped = CString::new(err.domain().as_bytes()).unwrap();
-
-        // Past this point C is responsible for freeing up its memory!
-        Self {
-            code: err.code() as i32,
-            domain: heaped.into_raw(),
-        }
-    }
-}
-
 /// Represents the failures that can occur in an Ockam FFI Vault.
 #[derive(Clone, Copy, Debug)]
 pub enum FfiError {
     /// Persistence is not supported for this Vault implementation.
-    VaultDoesntSupportPersistence = 1,
+    VaultDoesNotSupportPersistence = 1,
 
     /// An underlying filesystem error prevented Vault creation.
     ErrorCreatingFilesystemVault,
@@ -74,24 +64,66 @@ pub enum FfiError {
 
     /// Ownership error.
     OwnershipError,
-}
 
-impl FfiError {
-    /// Integer code associated with the error domain.
-    pub const DOMAIN_CODE: u32 = 13_000;
-    /// Descriptive name for the error domain.
-    pub const DOMAIN_NAME: &'static str = "OCKAM_FFI";
+    /// Caught a panic (which would be UB if we let it unwind across the FFI).
+    UnexpectedPanic,
 }
-
+impl ockam_core::compat::error::Error for FfiError {}
 impl From<FfiError> for Error {
+    #[track_caller]
     fn from(err: FfiError) -> Self {
-        Self::new(FfiError::DOMAIN_CODE + (err as u32), FfiError::DOMAIN_NAME)
+        Error::new(Origin::Other, Kind::Other, err)
+    }
+}
+impl core::fmt::Display for FfiError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::VaultDoesNotSupportPersistence => write!(
+                f,
+                "persistence is not supported for this Vault implementation."
+            ),
+            Self::ErrorCreatingFilesystemVault => write!(
+                f,
+                "an underlying filesystem error prevented Vault creation."
+            ),
+            Self::InvalidParam => write!(f, "invalid parameter."),
+            Self::EntryNotFound => write!(f, "entry not found."),
+            Self::UnknownPublicKeyType => write!(f, "unknown public key type."),
+            Self::InvalidString => write!(f, "invalid string."),
+            Self::BufferTooSmall => write!(f, "buffer is too small."),
+            Self::InvalidPublicKey => write!(f, "a public key is invalid."),
+            Self::VaultNotFound => write!(f, "no such Vault."),
+            Self::OwnershipError => write!(f, "ownership error."),
+            Self::UnexpectedPanic => write!(
+                f,
+                "caught a panic (which would be UB if we let it unwind across the FFI)."
+            ),
+        }
+    }
+}
+
+impl From<Error> for FfiOckamError {
+    fn from(err: Error) -> Self {
+        Self::new(
+            err.code().origin as i32 * 10_000 + err.code().kind as i32,
+            "unknown",
+        )
     }
 }
 
 impl From<FfiError> for FfiOckamError {
     fn from(err: FfiError) -> Self {
-        let err: Error = err.into();
-        Self::from(err)
+        let err2: Error = err.into();
+        Self::from(err2)
+    }
+}
+
+/// # Safety
+/// frees `FfiOckamError::domain` if it's non-null
+#[no_mangle]
+pub unsafe extern "C" fn ockam_vault_free_error(context: &mut FfiOckamError) {
+    if !context.domain.is_null() {
+        let _ = CString::from_raw(context.domain as *mut _);
+        context.domain = core::ptr::null();
     }
 }

@@ -6,12 +6,47 @@ defmodule Ockam.Workers.Call do
 
   use Ockam.Worker
 
-  alias Ockam.Message
-
   require Logger
 
+  def call_on_current_process(payload, onward_route, timeout \\ 10_000, self_address \\ nil) do
+    with_self_address(self_address, fn call_address ->
+      Ockam.Router.route(payload, onward_route, [call_address])
+
+      receive do
+        %Ockam.Message{
+          onward_route: [^call_address]
+        } = message ->
+          {:ok, message}
+      after
+        timeout ->
+          {:error, :timeout}
+      end
+    end)
+  end
+
+  def with_self_address(nil, fun) do
+    {:ok, call_address} = Ockam.Node.register_random_address()
+
+    try do
+      fun.(call_address)
+    after
+      Ockam.Node.unregister_address(call_address)
+      ## Flush the mailbox
+      receive do
+        %Ockam.Message{onward_route: [^call_address]} -> :ok
+      after
+        0 -> :ok
+      end
+    end
+  end
+
+  def with_self_address(address, fun) do
+    fun.(address)
+  end
+
   def call(call, options \\ [], timeout \\ 20_000) do
-    {:ok, address} = __MODULE__.create(Keyword.put(options, :call, call))
+    {:ok, address} = __MODULE__.create(Keyword.merge(options, call: call))
+
     [message] = GenServer.call(Ockam.Node.whereis(address), :fetch, timeout)
     message
   end
@@ -22,6 +57,9 @@ defmodule Ockam.Workers.Call do
   end
 
   @impl true
+  def address_prefix(_options), do: "CALL_"
+
+  @impl true
   def setup(options, %{} = state) do
     call = Keyword.fetch!(options, :call)
     send_call(call, state)
@@ -30,8 +68,8 @@ defmodule Ockam.Workers.Call do
 
   def send_call(call, state) do
     Ockam.Router.route(%{
-      payload: Message.payload(call),
-      onward_route: Message.onward_route(call),
+      payload: Map.get(call, :payload),
+      onward_route: Map.get(call, :onward_route),
       return_route: [state.address]
     })
   end

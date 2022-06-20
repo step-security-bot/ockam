@@ -5,7 +5,7 @@ defmodule Ockam.MixProject do
 
   @elixir_requirement "~> 1.10"
 
-  @ockam_github_repo "https://github.com/ockam-network/ockam"
+  @ockam_github_repo "https://github.com/build-trust/ockam"
   @ockam_github_repo_path "implementations/elixir/ockam/ockam"
 
   def project do
@@ -43,20 +43,20 @@ defmodule Ockam.MixProject do
   def application do
     [
       mod: {Ockam, []},
-      extra_applications: [:logger],
-      env: [{Ockam.Wire, [default: Ockam.Wire.Binary.V2]}]
+      extra_applications: [:logger]
     ]
   end
 
   defp deps do
     [
       {:bare, "~> 0.1.1"},
+      {:cbor, "~> 1.0.0"},
       {:gen_state_machine, "~> 3.0"},
       {:ockam_vault_software, path: "../ockam_vault_software", optional: true},
-      {:telemetry, "~> 0.4.2", optional: true},
+      {:telemetry, "~> 1.0", optional: true},
       {:ranch, "~> 2.1", optional: true},
       {:ex_doc, "~> 0.25", only: :dev, runtime: false},
-      {:credo, "~> 1.5", only: [:dev, :test], runtime: false},
+      {:credo, "~> 1.6", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.1", only: [:dev], runtime: false}
     ]
   end

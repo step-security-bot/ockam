@@ -17,12 +17,21 @@ defmodule Ockam.Router do
 
   alias Ockam.Telemetry
 
+  @type message() ::
+          Message.t()
+          | %{payload: binary(), onward_route: [Address.t()], return_route: [Address.t()]}
+
+  @dialyzer {:nowarn_function, raise_invalid_message: 1}
+
   @doc """
   Routes the given message.
-  """
-  @spec route(Message.t()) :: :ok | {:error, reason :: any()}
 
-  def route(message) do
+  Message can be Ockam.Message, or a map with payload, onward_route and optional return_route
+  """
+  @spec route(message()) :: :ok | {:error, reason :: any()}
+
+  def route(%Ockam.Message{payload: pl, onward_route: o_r, return_route: r_r} = message)
+      when is_binary(pl) and is_list(o_r) and is_list(r_r) do
     metadata = %{message: message}
     start_time = Telemetry.emit_start_event([__MODULE__, :route], metadata: metadata)
 
@@ -32,6 +41,33 @@ defmodule Ockam.Router do
     Telemetry.emit_stop_event([__MODULE__, :route], start_time, metadata: metadata)
 
     return_value
+  end
+
+  def route(%{payload: pl, onward_route: o_r} = message) when is_binary(pl) and is_list(o_r) do
+    return_route = Map.get(message, :return_route, [])
+
+    case is_list(return_route) do
+      true ->
+        route(struct(Ockam.Message, message))
+
+      false ->
+        raise_invalid_message(message)
+    end
+  end
+
+  def route(message) do
+    raise_invalid_message(message)
+  end
+
+  @doc """
+  Routes a message with given payload, onward_route and return_route
+  """
+  def route(payload, onward_route, return_route \\ []) do
+    route(%Message{onward_route: onward_route, return_route: return_route, payload: payload})
+  end
+
+  def raise_invalid_message(message) do
+    raise "Cannot route invalid message: #{inspect(message)}"
   end
 
   defp pick_and_invoke_handler(message) do
@@ -45,11 +81,20 @@ defmodule Ockam.Router do
     end
   end
 
-  defp invoke_handler(handler, message) when is_function(handler, 1) do
-    case handler.(message) do
+  defp invoke_handler(handler, message) do
+    case apply_handler(handler, message) do
       {:error, error} -> {:error, {:handler_error, error, message, handler}}
+      ## TODO: require and match :ok result
       _anything_else -> :ok
     end
+  end
+
+  defp apply_handler(handler, message) when is_function(handler, 1) do
+    handler.(message)
+  end
+
+  defp apply_handler({m, f, a}, message) when is_atom(m) and is_atom(f) and is_list(a) do
+    apply(m, f, [message | a])
   end
 
   @doc """
@@ -63,9 +108,11 @@ defmodule Ockam.Router do
 
   def get_message_handler(:default), do: Storage.get(:default_message_handler)
 
+  def get_message_handler(0), do: Storage.get(:default_message_handler)
+
   def get_message_handler(address_type) when Address.is_address_type(address_type) do
     case Storage.get({:address_type_message_handler, address_type}) do
-      nil -> get_message_handler(:default)
+      nil -> nil
       handler -> handler
     end
   end

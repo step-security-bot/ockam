@@ -5,10 +5,11 @@ defmodule Ockam.Transport.TCP.Handler do
 
   alias Ockam.Message
   alias Ockam.Telemetry
+  alias Ockam.Transport.TCP
 
   require Logger
 
-  @wire_encoder_decoder Ockam.Wire.Binary.V2
+  @address_prefix "TCP_H_"
 
   def start_link(ref, _socket, transport, opts) do
     start_link(ref, transport, opts)
@@ -24,9 +25,7 @@ defmodule Ockam.Transport.TCP.Handler do
     {:ok, socket} = :ranch.handshake(ref, opts)
     :ok = :inet.setopts(socket, [{:active, true}, {:packet, 2}, {:nodelay, true}])
 
-    address = Ockam.Node.get_random_unregistered_address()
-
-    Ockam.Node.Registry.register_name(address, self())
+    {:ok, address} = Ockam.Node.register_random_address(@address_prefix, __MODULE__)
 
     {function_name, _} = __ENV__.function
     Telemetry.emit_event(function_name)
@@ -44,20 +43,30 @@ defmodule Ockam.Transport.TCP.Handler do
   end
 
   @impl true
+  def handle_info({:tcp, socket, ""}, %{socket: socket} = state) do
+    ## Empty TCP payload - ignore
+    {:noreply, state}
+  end
+
   def handle_info({:tcp, socket, data}, %{socket: socket, address: address} = state) do
     {function_name, _} = __ENV__.function
 
-    with {:ok, decoded} <- Ockam.Wire.decode(@wire_encoder_decoder, data),
-         {:ok, decoded} <- set_return_route(decoded, address) do
-      send_to_router(decoded)
-      Telemetry.emit_event(function_name, metadata: %{name: "decoded_data"})
-    else
+    data_size = byte_size(data)
+
+    Telemetry.emit_event([:tcp, :handler, :message],
+      measurements: %{byte_size: data_size},
+      metadata: %{address: address}
+    )
+
+    case Ockam.Wire.decode(data) do
+      {:ok, decoded} ->
+        forwarded_message = Message.trace(decoded, address)
+        send_to_router(forwarded_message)
+        Telemetry.emit_event(function_name, metadata: %{name: "decoded_data"})
+
       {:error, %Ockam.Wire.DecodeError{} = e} ->
         start_time = Telemetry.emit_start_event(function_name)
         Telemetry.emit_exception_event(function_name, start_time, e)
-        raise e
-
-      e ->
         raise e
     end
 
@@ -72,13 +81,23 @@ defmodule Ockam.Transport.TCP.Handler do
   end
 
   def handle_info(
-        %{payload: _payload} = message,
-        %{transport: transport, socket: socket, address: address} = state
+        %Ockam.Message{} = message,
+        %{transport: transport, socket: socket} = state
       ) do
-    with {:ok, message} <- set_onward_route(message, address),
-         {:ok, encoded} <- Ockam.Wire.encode(@wire_encoder_decoder, message) do
-      transport.send(socket, encoded)
-    else
+    forwarded_message = Message.forward(message)
+
+    case Ockam.Wire.encode(forwarded_message) do
+      {:ok, encoded} ->
+        ## TODO: send/receive message in multiple TCP packets
+        case byte_size(encoded) <= TCP.packed_size_limit() do
+          true ->
+            transport.send(socket, encoded)
+
+          false ->
+            Logger.error("Message to big for TCP: #{inspect(message)}")
+            raise {:message_too_big, message}
+        end
+
       a ->
         Logger.error("TCP transport send error #{inspect(a)}")
         raise a
@@ -90,19 +109,6 @@ defmodule Ockam.Transport.TCP.Handler do
   def handle_info(other, state) do
     Logger.warn("TCP HANDLER Received unkown message #{inspect(other)} #{inspect(state)}")
     {:noreply, state}
-  end
-
-  defp set_onward_route(message, address) do
-    onward_route =
-      message
-      |> Message.onward_route()
-      |> Enum.drop_while(fn a -> a === address end)
-
-    {:ok, %{message | onward_route: onward_route}}
-  end
-
-  defp set_return_route(%{return_route: return_route} = message, address) do
-    {:ok, %{message | return_route: [address | return_route]}}
   end
 
   defp send_to_router(message) do

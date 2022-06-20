@@ -1,4 +1,7 @@
-use ockam_core::Error;
+use ockam_core::{
+    errcode::{Kind, Origin},
+    Error,
+};
 
 /// Represents the failures that can occur in
 /// an Ockam X3DH kex
@@ -10,18 +13,27 @@ pub enum X3DHError {
     InvalidHash,
 }
 
-impl X3DHError {
-    /// Integer code associated with the error domain.
-    pub const DOMAIN_CODE: u32 = 18_000;
-    /// Descriptive name for the error domain.
-    pub const DOMAIN_NAME: &'static str = "OCKAM_KEX_X3DH";
+impl ockam_core::compat::error::Error for X3DHError {}
+impl core::fmt::Display for X3DHError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::InvalidState => "invalid state".fmt(f),
+            Self::MessageLenMismatch => "message length mismatch".fmt(f),
+            Self::SignatureLenMismatch => "signature length mismatch".fmt(f),
+            Self::InvalidHash => "invalid hash".fmt(f),
+        }
+    }
 }
 
 impl From<X3DHError> for Error {
+    #[track_caller]
     fn from(err: X3DHError) -> Self {
-        Self::new(
-            X3DHError::DOMAIN_CODE + (err as u32),
-            X3DHError::DOMAIN_NAME,
-        )
+        use X3DHError::*;
+        let kind = match err {
+            InvalidState | InvalidHash => Kind::Invalid,
+            MessageLenMismatch | SignatureLenMismatch => Kind::Misuse,
+        };
+
+        Error::new(Origin::KeyExchange, kind, err)
     }
 }

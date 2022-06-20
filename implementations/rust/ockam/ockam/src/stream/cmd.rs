@@ -1,12 +1,12 @@
 use crate::{
     protocols::{ProtocolParser, ProtocolPayload},
-    ProtocolId, Result,
+    Message, ProtocolId, Result,
 };
 use ockam_core::{compat::collections::BTreeSet, Decodable};
 use serde::{Deserialize, Serialize};
 
 /// A protocol exchanged between a stream consumer and stream producer
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Message)]
 pub enum StreamWorkerCmd {
     /// Trigger a fetch event
     ///
@@ -14,10 +14,17 @@ pub enum StreamWorkerCmd {
     /// delayed reactive response
     Fetch,
     /// Pull messages from the consumer's buffer
-    Pull { num: usize },
+    Pull {
+        /// Number of messages to pull.
+        ///
+        /// Zero is used as a sentinal to indicate "all messages".
+        num: usize,
+    },
 }
 
 impl StreamWorkerCmd {
+    /// Return a [`ProtocolPayload`] containing a
+    /// [`Fetch`](StreamWorkerCmd::Fetch) event.
     pub fn fetch() -> ProtocolPayload {
         ProtocolPayload::new(ProtocolId::from("internal.stream.fetch"), Self::Fetch)
     }

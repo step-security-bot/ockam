@@ -1,0 +1,5 @@
+error: the `Context` argument must be passed as reference
+ --> tests/node_test/fail_with_mutable_context.rs:2:18
+  |
+2 | async fn my_test(mut ctx: Context) -> ockam_core::Result<()> {
+  |                  ^^^^^^^^^^^^^^^^

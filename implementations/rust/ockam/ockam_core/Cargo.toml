@@ -1,44 +1,90 @@
 [package]
 name = "ockam_core"
-version = "0.36.0"
+version = "0.56.0"
 authors = ["Ockam Developers"]
-edition = "2018"
+edition = "2021"
 license = "Apache-2.0"
-homepage = "https://github.com/ockam-network/ockam"
-repository = "https://github.com/ockam-network/ockam/implementations/rust/ockam/ockam_core"
+homepage = "https://github.com/build-trust/ockam"
+repository = "https://github.com/build-trust/ockam/implementations/rust/ockam/ockam_core"
 readme = "README.md"
-categories = ["cryptography", "asynchronous", "authentication","network-programming", "embedded"]
+categories = [
+    "cryptography",
+    "asynchronous",
+    "authentication",
+    "network-programming",
+    "embedded",
+]
 keywords = ["ockam", "crypto", "p2p", "cryptography", "encryption"]
 description = """
 Core types of the Ockam library.
 """
-exclude = [
-    "DEVELOP.md",
-    "LICENSE"
-]
+publish = true
+rust-version = "1.56.0"
 
 [features]
-default = ["std"]
+default = ["std", "error-traces"]
 
 # Feature (enabled by default): "std" enables functionality expected to
 # be available on a standard platform.
-std = ["alloc", "hex/std", "rand/std", "rand/std_rng", "serde_bare/std"]
+std = [
+    "alloc",
+    "hex/std",
+    "minicbor/std",
+    "rand/std",
+    "rand/std_rng",
+    "serde_bare/std",
+    "ockam_macros/std",
+    "once_cell/std",
+]
 
 # Feature: "no_std" enables functionality required for platforms
 # without the standard library.
-no_std = ["core2", "hex", "rand_pcg", "spin"]
+no_std = ["core2", "hex", "rand_pcg", "spin", "ockam_macros/no_std"]
 
 # Feature: "alloc" enables support for heap allocation (implied by `feature = "std"`)
-alloc = ["core2/alloc", "heapless", "hex/alloc", "serde/alloc", "serde_bare/alloc"]
+alloc = [
+    "core2/alloc",
+    "heapless",
+    "hex/alloc",
+    "minicbor/alloc",
+    "serde/alloc",
+    "serde_bare/alloc",
+]
+bls = []
+
+# Error traces cover whether not our errors capture backtraces and/or spantraces
+# by default.
+error-traces = ["backtrace", "tracing-error", "once_cell"]
 
 [dependencies]
+ockam_macros = { path = "../ockam_macros", version = "^0.16.0", default_features = false }
 async-trait = "0.1.42"
-hashbrown =  { version = "0.11", default-features = false, features = ["ahash", "serde"] }
+hashbrown = { version = "0.11", default-features = false, features = [
+    "ahash",
+    "serde",
+] }
 heapless = { version = "0.7.1", optional = true }
 hex = { version = "0.4", default-features = false, optional = true }
+minicbor = { version = "0.17.1", features = ["derive"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 serde_bare = { version = "0.5.0", default-features = false }
 rand = { version = "0.8", default-features = false }
 rand_pcg = { version = "0.3.1", default-features = false, optional = true }
 core2 = { version = "0.3.2", default-features = false, optional = true }
-spin = { version = "0.9.1", default-features = false, features = ["mutex", "rwlock", "spin_mutex"], optional = true }
+spin = { version = "0.9.1", default-features = false, features = [
+    "mutex",
+    "rwlock",
+    "spin_mutex",
+], optional = true }
+futures-util = { version = "0.3.17", default-features = false, features = [
+    "alloc",
+    "async-await-macro",
+    "sink",
+] }
+zeroize = { version = "1.4.2", features = ["zeroize_derive"] }
+cfg-if = "1.0"
+subtle = { version = "2", default-features = false }
+tracing = { version = "0.1", default-features = false, features = ["attributes"] }
+tracing-error = { version = "0.2", default-features = false, optional = true }
+backtrace = { version = "0.3", default-features = false, features = ["std", "serialize-serde"], optional = true }
+once_cell = { version = "1", optional = true, default-features = false }

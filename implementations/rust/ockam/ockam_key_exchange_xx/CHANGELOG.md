@@ -1,9 +1,142 @@
 # Changelog
+All notable changes to this project will be documented in this file.
 
-All notable changes to this crate will be documented in this file.
-
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## unreleased
+
+### Changed
+
+- Create node builder for easier node initialisation
+
+## 0.50.0 - 2022-06-06
+
+### Changed
+
+- Switch `Vault` to `String` `KeyId` instead of integer `Secret`
+- Updated dependencies
+
+### Removed
+
+- Remove `AsRef` from `PublicKey` to avoid confusion
+
+## 0.49.0 - 2022-05-23
+
+### Changed
+
+- Updated dependencies
+
+## 0.48.0 - 2022-05-09
+
+### Changed
+
+- Updated dependencies
+
+## 0.47.0 - 2022-05-05
+
+### Changed
+
+- Updated dependencies
+
+## 0.46.0 - 2022-04-25
+
+### Added
+
+- Add "crate" attribute to async_try_clone_derive macro
+
+### Changed
+
+- Updated dependencies
+
+## 0.45.0 - 2022-04-19
+
+### Changed
+
+- Build error mapping for various crates
+- Clean up ockam_core import paths
+- Run rustfmt
+- Rename error2 to error
+- Updated dependencies
+
+### Fixed
+
+- Fix various clippy and rustfmt lints
+
+## 0.44.0 - 2022-04-11
+
+### Changed
+
+- Implement miniature `ockam` command for demo
+- Vault updates
+- Updated dependencies
+
+### Fixed
+
+- Insert a temporary mechanism to improve error messages
+
+## 0.43.0 - 2022-04-04
+
+### Changed
+
+- Updated dependencies
+
+## 0.42.0 - 2022-03-28
+
+### Changed
+
+- Updated dependencies
+
+## 0.39.0 - 2022-02-08
+
+### Changed
+
+- Update crate edition to 2021
+
+## 0.36.0 - 2022-01-10
+
+### Changed
+
+- Improve formatting of `Cargo.toml`s  and add `rust-version` 1.56.0
+
+## 0.35.0 - 2021-12-13
+
+### Changed
+
+- Vault updates
+- Change uses of `ockam_vault_core::Foo` to use `ockam_core::vault::Foo` across crates
+
+## 0.34.0 - 2021-12-06
+
+### Removed
+
+- Remove symlinks to `DEVELOP.md` and `LICENSE`
+
+## v0.33.0 - 2021-11-22
+
+
+### Changed
+
+- Deny warnings in ci, not local development
+- Run `cargo clippy --fix`
+
+
+## v0.32.0 - 2021-11-15
+### Changed
+- Dependencies updated
+
+## v0.31.0 - 2021-11-08
+### Changed
+- Dependencies updated
+- replace `AsyncTryClone` trait impls with `#[derive(AsyncTryClone)]` wherever applicable
+
+## v0.30.0 - 2021-11-01
+### Changed
+- Dependencies updated
+
+## v0.29.0 - 2021-10-26
+### Changed
+- Dependencies updated
 
 ## v0.28.0 - 2021-10-25
 ### Changed

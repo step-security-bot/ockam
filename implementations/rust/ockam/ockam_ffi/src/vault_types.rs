@@ -1,20 +1,19 @@
 #![allow(conflicting_repr_hints)]
 
 use crate::FfiError;
-use core::convert::TryFrom;
-use ockam_vault_core::{SecretAttributes, SecretPersistence, SecretType};
+use ockam_core::vault::{SecretAttributes, SecretPersistence, SecretType};
 
 /// Represents a handle id for the secret key
 pub type SecretKeyHandle = u64;
 
-#[derive(Clone, Copy, Debug)]
 #[repr(C, u8)]
+#[derive(Clone, Copy, Debug)]
 pub enum FfiVaultType {
     Software = 1,
 }
 
-#[derive(Clone, Copy, Debug)]
 #[repr(C)]
+#[derive(Clone, Copy, Debug)]
 pub struct FfiVaultFatPointer {
     handle: u64,
     vault_type: FfiVaultType,
@@ -70,8 +69,8 @@ impl From<SecretAttributes> for FfiSecretAttributes {
         let stype = match attrs.stype() {
             SecretType::Buffer => 0,
             SecretType::Aes => 1,
-            SecretType::Curve25519 => 2,
-            SecretType::P256 => 3,
+            SecretType::X25519 => 2,
+            SecretType::Ed25519 => 3,
             #[cfg(feature = "bls")]
             SecretType::Bls => 4,
         };
@@ -92,8 +91,8 @@ impl TryFrom<FfiSecretAttributes> for SecretAttributes {
         let stype = match attrs.stype() {
             0 => Ok(SecretType::Buffer),
             1 => Ok(SecretType::Aes),
-            2 => Ok(SecretType::Curve25519),
-            3 => Ok(SecretType::P256),
+            2 => Ok(SecretType::X25519),
+            3 => Ok(SecretType::Ed25519),
             #[cfg(feature = "bls")]
             4 => Ok(SecretType::Bls),
             _ => Err(FfiError::InvalidParam),

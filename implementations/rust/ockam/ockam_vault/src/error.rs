@@ -1,4 +1,7 @@
-use ockam_core::Error;
+use ockam_core::{
+    errcode::{Kind, Origin},
+    Error,
+};
 
 /// Represents the failures that can occur in
 /// an Ockam vault
@@ -16,7 +19,9 @@ pub enum VaultError {
     EntryNotFound,
     /// Invalid AES key length
     InvalidAesKeyLength,
-    /// Invalid HKDF outputtype
+    /// Invalid Secret length
+    InvalidSecretLength,
+    /// Invalid HKDF output type
     InvalidHkdfOutputType,
     /// Invalid private key length
     InvalidPrivateKeyLen,
@@ -28,28 +33,66 @@ pub enum VaultError {
     HkdfExpandError,
     /// Secret not found
     SecretNotFound,
-    /// Invalid Curve25519 secret length
-    InvalidCurve25519SecretLength,
-    /// Invalid Curve25519 secret (scalar not clamped)
-    InvalidCurve25519Secret,
+    /// Invalid X25519 secret length
+    InvalidX25519SecretLength,
+    /// Invalid Ed25519 secret
+    InvalidEd25519Secret,
     /// Invalid BLS secret length
     InvalidBlsSecretLength,
     /// Invalid BLS secret
     InvalidBlsSecret,
+    /// Invalid Secret Attributes
+    InvalidSecretAttributes,
+    /// IO error
+    StorageError,
+    /// Invalid Storage data
+    InvalidStorageData,
 }
 
-impl VaultError {
-    /// Integer code associated with the error domain.
-    pub const DOMAIN_CODE: u32 = 12_000;
-    /// Descriptive name for the error domain.
-    pub const DOMAIN_NAME: &'static str = "OCKAM_VAULT";
+impl ockam_core::compat::error::Error for VaultError {}
+impl core::fmt::Display for VaultError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::SecretFromAnotherVault => write!(f, "secret does not belong to this vault"),
+            Self::InvalidPublicKey => write!(f, "public key is invalid"),
+            Self::UnknownEcdhKeyType => write!(f, "unknown ECDH key type"),
+            Self::InvalidKeyType => write!(f, "invalid key type"),
+            Self::EntryNotFound => write!(f, "entry not found"),
+            Self::InvalidAesKeyLength => write!(f, "invalid AES key length"),
+            Self::InvalidSecretLength => write!(f, "invalid secret length"),
+            Self::InvalidHkdfOutputType => write!(f, "invalid HKDF outputtype"),
+            Self::InvalidPrivateKeyLen => write!(f, "invalid private key length"),
+            Self::AeadAesGcmEncrypt => write!(f, "aes encryption failed"),
+            Self::AeadAesGcmDecrypt => write!(f, "aes decryption failed"),
+            Self::HkdfExpandError => write!(f, "hkdf key expansion failed"),
+            Self::SecretNotFound => write!(f, "secret not found"),
+            Self::InvalidX25519SecretLength => write!(f, "invalid X25519 secret length"),
+            Self::InvalidEd25519Secret => write!(f, "invalid Ed25519 secret"),
+            Self::InvalidBlsSecretLength => write!(f, "invalid BLS secret length"),
+            Self::InvalidBlsSecret => write!(f, "invalid BLS secret"),
+            Self::InvalidSecretAttributes => write!(f, "invalid secret attributes"),
+            Self::StorageError => write!(f, "invalid storage"),
+            Self::InvalidStorageData => write!(f, "invalid storage data"),
+        }
+    }
 }
 
 impl From<VaultError> for Error {
+    #[track_caller]
     fn from(err: VaultError) -> Self {
-        Self::new(
-            VaultError::DOMAIN_CODE + (err as u32),
-            VaultError::DOMAIN_NAME,
-        )
+        use VaultError::*;
+        let kind = match err {
+            SecretFromAnotherVault
+            | InvalidPublicKey
+            | InvalidKeyType
+            | InvalidAesKeyLength
+            | InvalidHkdfOutputType
+            | InvalidPrivateKeyLen
+            | InvalidX25519SecretLength => Kind::Misuse,
+            UnknownEcdhKeyType | EntryNotFound | SecretNotFound => Kind::NotFound,
+            _ => Kind::Invalid,
+        };
+
+        Error::new(Origin::Vault, kind, err)
     }
 }

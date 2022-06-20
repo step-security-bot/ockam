@@ -1,6 +1,10 @@
-use ockam::{route, Context, Entity, Result, TrustEveryonePolicy, Vault};
-use ockam::{stream::Stream, Routed, TcpTransport, Unique, Worker, TCP};
-
+use ockam::{
+    identity::{Identity, TrustEveryonePolicy},
+    route,
+    stream::Stream,
+    vault::Vault,
+    Context, Result, Routed, TcpTransport, Worker, TCP,
+};
 struct Echoer;
 
 // Define an Echoer worker that prints any message it receives and
@@ -24,10 +28,10 @@ async fn main(ctx: Context) -> Result<()> {
     TcpTransport::create(&ctx).await?;
 
     // Create a Vault to safely store secret keys for Bob.
-    let vault = Vault::create(&ctx).await?;
+    let vault = Vault::create();
 
-    // Create an Entity to represent Bob.
-    let mut bob = Entity::create(&ctx, &vault).await?;
+    // Create an Identity to represent Bob.
+    let bob = Identity::create(&ctx, &vault).await?;
 
     // Create a secure channel listener for Bob that will wait for requests to
     // initiate an Authenticated Key Exchange.
@@ -43,14 +47,14 @@ async fn main(ctx: Context) -> Result<()> {
     // - a sender (producer) for the `bob_to_alice` stream.
 
     let node_in_hub = (TCP, "1.node.ockam.network:4000");
-    let b_to_a_stream_address = Unique::with_prefix("bob_to_alice");
-    let a_to_b_stream_address = Unique::with_prefix("alice_to_bob");
+    let b_to_a_stream_address = ockam::unique_with_prefix("bob_to_alice");
+    let a_to_b_stream_address = ockam::unique_with_prefix("alice_to_bob");
 
     Stream::new(&ctx)
         .await?
         .stream_service("stream_kafka")
         .index_service("stream_kafka_index")
-        .client_id(Unique::with_prefix("bob"))
+        .client_id(ockam::unique_with_prefix("bob"))
         .connect(
             route![node_in_hub],
             b_to_a_stream_address.clone(),

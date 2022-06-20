@@ -1,9 +1,91 @@
 # Changelog
+All notable changes to this project will be documented in this file.
 
-All notable changes to this crate will be documented in this file.
-
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## 0.46.0 - 2022-06-06
+
+### Changed
+
+- Switch `Vault` to `String` `KeyId` instead of integer `Secret`
+- Updated dependencies
+
+## 0.45.0 - 2022-05-09
+
+### Changed
+
+- Updated dependencies
+
+## 0.44.0 - 2022-04-25
+
+### Changed
+
+- Updated dependencies
+
+## 0.43.0 - 2022-04-19
+
+### Changed
+
+- Build error mapping for various crates
+- Clean up ockam_core import paths
+- Updated dependencies
+
+## 0.42.0 - 2022-04-11
+
+### Changed
+
+- Updated dependencies
+
+## 0.41.0 - 2022-03-28
+
+### Changed
+
+- Updated dependencies
+
+## 0.38.0 - 2022-02-08
+
+### Changed
+
+- Update crate edition to 2021
+
+## 0.35.0 - 2022-01-10
+
+### Changed
+
+- Improve formatting of `Cargo.toml`s  and add `rust-version` 1.56.0
+
+## 0.34.0 - 2021-12-13
+
+### Changed
+
+- Change uses of `ockam_vault_core::Foo` to use `ockam_core::vault::Foo` across crates
+
+## 0.33.0 - 2021-12-06
+
+### Removed
+
+- Remove symlinks to `DEVELOP.md` and `LICENSE`
+
+## v0.32.0 - 2021-11-22
+
+
+### Changed
+
+- Deny warnings in ci, not local development
+
+
+## v0.31.0 - 2021-11-15
+### Changed
+- Dependencies updated
+
+## v0.30.0 - 2021-11-08
+### Changed
+- Dependencies updated
+
+## v0.29.0 - 2021-11-01
+### Changed
+- Dependencies updated
 
 ## v0.28.0 - 2021-10-25
 ### Changed

@@ -1,7 +1,9 @@
-use crate::{parse_socket_addr, TcpOutletListenWorker, TcpRouter, TcpRouterHandle};
-use ockam_core::{async_trait, compat::boxed::Box};
+use ockam_core::access_control::AccessControl;
+use ockam_core::compat::{boxed::Box, net::SocketAddr};
 use ockam_core::{Address, AsyncTryClone, Result, Route};
 use ockam_node::Context;
+
+use crate::{parse_socket_addr, TcpOutletListenWorker, TcpRouter, TcpRouterHandle};
 
 /// High level management interface for TCP transports
 ///
@@ -32,7 +34,7 @@ use ockam_node::Context;
 /// The same `TcpTransport` can also bind to multiple ports.
 ///
 /// ```rust
-/// # use ockam_transport_tcp::TcpTransport;
+/// use ockam_transport_tcp::TcpTransport;
 /// # use ockam_node::Context;
 /// # use ockam_core::Result;
 /// # async fn test(ctx: Context) -> Result<()> {
@@ -41,17 +43,10 @@ use ockam_node::Context;
 /// tcp.listen("127.0.0.1:9000").await?; // Listen on port 9000
 /// # Ok(()) }
 /// ```
+#[derive(AsyncTryClone)]
+#[async_try_clone(crate = "ockam_core")]
 pub struct TcpTransport {
     router_handle: TcpRouterHandle,
-}
-
-#[async_trait]
-impl AsyncTryClone for TcpTransport {
-    async fn async_try_clone(&self) -> Result<Self> {
-        Ok(Self {
-            router_handle: self.router_handle.async_try_clone().await?,
-        })
-    }
 }
 
 impl TcpTransport {
@@ -87,11 +82,22 @@ impl TcpTransport {
     /// tcp.connect("127.0.0.1:5000").await?; // and connect to port 5000
     /// # Ok(()) }
     /// ```
-    pub async fn connect<S: AsRef<str>>(&self, peer: S) -> Result<()> {
+    pub async fn connect<S: AsRef<str>>(&self, peer: S) -> Result<Address> {
         self.router_handle.connect(peer.as_ref()).await
     }
 
+    /// Disconnect from peer
+    pub async fn disconnect<S: AsRef<str>>(&self, peer: S) -> Result<()> {
+        self.router_handle.disconnect(peer.as_ref()).await
+    }
+
     /// Start listening to incoming connections on an existing transport
+    ///
+    /// Returns the local address that this transport is bound to.
+    ///
+    /// This can be useful, for example, when binding to port 0 to figure out
+    /// which port was actually bound.
+    ///
     /// ```rust
     /// use ockam_transport_tcp::TcpTransport;
     /// # use ockam_node::Context;
@@ -100,16 +106,15 @@ impl TcpTransport {
     /// let tcp = TcpTransport::create(&ctx).await?;
     /// tcp.listen("127.0.0.1:8000").await?;
     /// # Ok(()) }
-    pub async fn listen<S: AsRef<str>>(&self, bind_addr: S) -> Result<()> {
+    pub async fn listen<S: AsRef<str>>(&self, bind_addr: S) -> Result<SocketAddr> {
         let bind_addr = parse_socket_addr(bind_addr.as_ref())?;
-        self.router_handle.bind(bind_addr).await?;
-        Ok(())
+        self.router_handle.bind(bind_addr).await
     }
 }
 
 impl TcpTransport {
     /// Create Tcp Inlet that listens on bind_addr, transforms Tcp stream into Ockam Routable
-    /// Messages and forward them to Outlet using onward_route. Inlet is bidirectional: Ockam
+    /// Messages and forward them to Outlet using outlet_route. Inlet is bidirectional: Ockam
     /// Messages sent to Inlet from Outlet (using return route) will be streamed to Tcp connection.
     /// Pair of corresponding Inlet and Outlet is called Portal.
     ///
@@ -126,18 +131,13 @@ impl TcpTransport {
     /// # tcp.stop_inlet("inlet").await?;
     /// # Ok(()) }
     /// ```
-    pub async fn create_inlet<S: AsRef<str>>(
+    pub async fn create_inlet(
         &self,
-        bind_addr: S,
-        onward_route: impl Into<Route>,
-    ) -> Result<Address> {
-        let bind_addr = parse_socket_addr(bind_addr.as_ref())?;
-        let addr = self
-            .router_handle
-            .bind_inlet(onward_route, bind_addr)
-            .await?;
-
-        Ok(addr)
+        bind_addr: impl Into<String>,
+        outlet_route: impl Into<Route>,
+    ) -> Result<(Address, SocketAddr)> {
+        let bind_addr = parse_socket_addr(bind_addr.into())?;
+        self.router_handle.bind_inlet(outlet_route, bind_addr).await
     }
 
     /// Stop inlet at addr
@@ -183,7 +183,34 @@ impl TcpTransport {
         address: impl Into<Address>,
         peer: impl Into<String>,
     ) -> Result<()> {
-        TcpOutletListenWorker::start(&self.router_handle, address.into(), peer.into()).await?;
+        let worker = TcpOutletListenWorker::new(peer.into());
+        self.router_handle
+            .ctx()
+            .start_worker(address.into(), worker)
+            .await?;
+
+        Ok(())
+    }
+
+    /// FIXME
+    pub async fn create_outlet_with_access_control<AC>(
+        &self,
+        address: impl Into<Address>,
+        peer: impl Into<String>,
+        access_control: AC,
+    ) -> Result<()>
+    where
+        AC: AccessControl,
+    {
+        let worker = TcpOutletListenWorker::new(peer.into());
+
+        // TODO all mailboxes get the same access_control?
+        //let mailboxes = Mailboxes::from_address_set(address.into().into(), access_control);
+
+        self.router_handle
+            .ctx()
+            .start_worker_with_access_control(address.into(), worker, access_control)
+            .await?;
 
         Ok(())
     }

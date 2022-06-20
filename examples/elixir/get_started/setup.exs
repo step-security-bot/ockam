@@ -1,8 +1,8 @@
-repo = "https://github.com/ockam-network/ockam.git"
+repo = "https://github.com/build-trust/ockam.git"
 
 Mix.install([
   {:ockam,
-    git: repo, branch: "develop", sparse: "implementations/elixir/ockam/ockam"},
+    git: repo, branch: "develop", force: true, sparse: "implementations/elixir/ockam/ockam"},
   {:ockam_vault_software, override: true,
     git: repo, branch: "develop", sparse: "implementations/elixir/ockam/ockam_vault_software"},
   {:ranch, "~> 2.1"}

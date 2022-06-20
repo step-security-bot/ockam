@@ -8,6 +8,7 @@ defmodule Ockam.SecureChannel.Channel do
   alias Ockam.SecureChannel.KeyEstablishmentProtocol.XX, as: XXKeyEstablishmentProtocol
   alias Ockam.Telemetry
 
+  ## TODO: do we need this API???
   @doc false
   def send(channel, message), do: Node.send(channel, message)
 
@@ -20,7 +21,13 @@ defmodule Ockam.SecureChannel.Channel do
 
   @doc false
   def create(options) when is_list(options) do
-    options = Keyword.put_new_lazy(options, :address, &Node.get_random_unregistered_address/0)
+    ## TODO: why secure channel is not a worker?
+    address_prefix = Keyword.get(options, :address_prefix, "")
+
+    options =
+      Keyword.put_new_lazy(options, :address, fn ->
+        Node.get_random_unregistered_address(address_prefix)
+      end)
 
     case Node.start_supervised(__MODULE__, options) do
       {:ok, _pid, address} -> {:ok, address}
@@ -30,8 +37,10 @@ defmodule Ockam.SecureChannel.Channel do
 
   @doc false
   def start_link(options) when is_list(options) do
-    with {:ok, address} <- get_from_options(:address, options),
-         {:ok, pid} <- start(address, options) do
+    address = Keyword.get(options, :address, Node.get_random_unregistered_address())
+    options = Keyword.put(options, :address, address)
+
+    with {:ok, pid} <- start(address, options) do
       {:ok, pid, address}
     end
   end
@@ -52,9 +61,9 @@ defmodule Ockam.SecureChannel.Channel do
          {:ok, data} <- setup_vault(options, data),
          {:ok, data} <- setup_peer(options, data),
          {:ok, data} <- setup_initiating_message(options, data),
-         {:ok, initial, data} <- setup_key_establishment_protocol(options, data),
+         {:ok, initial, data, next_events} <- setup_key_establishment_protocol(options, data),
          {:ok, initial, data} <- setup_encrypted_transport_protocol(options, initial, data) do
-      return_value = {:ok, initial, data}
+      return_value = {:ok, initial, data, next_events}
 
       metadata = Map.put(metadata, :return_value, return_value)
       Telemetry.emit_stop_event([__MODULE__, :init], start_time, metadata: metadata)
@@ -77,6 +86,7 @@ defmodule Ockam.SecureChannel.Channel do
     return_value
   end
 
+  ## TODO: better name to not collide with Ockam.Worker.handle_message
   defp handle_message({:call, from}, :established?, state, data) do
     established = {:encrypted_transport, :ready} === state
     {:next_state, state, data, [{:reply, from, established}]}
@@ -100,10 +110,12 @@ defmodule Ockam.SecureChannel.Channel do
   end
 
   # network facing address is ciphertext address
-  defp setup_ciphertext_address(_options, data) do
-    ciphertext_address = Node.get_random_unregistered_address()
+  defp setup_ciphertext_address(options, data) do
+    ## TODO: use a different prefix?
+    address_prefix = Keyword.get(options, :address_prefix, "")
+    ciphertext_address = Node.get_random_unregistered_address(address_prefix)
 
-    with :yes <- Node.register_address(ciphertext_address, self()) do
+    with :ok <- Node.register_address(ciphertext_address, __MODULE__) do
       {:ok, Map.put(data, :ciphertext_address, ciphertext_address)}
     end
   end

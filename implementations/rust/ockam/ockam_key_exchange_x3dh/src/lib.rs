@@ -7,11 +7,11 @@ extern crate core;
 extern crate alloc;
 
 use arrayref::array_ref;
-use core::convert::TryFrom;
-use ockam_core::{compat::vec::Vec, hex::encode, AsyncTryClone};
-use ockam_vault_core::{
-    AsymmetricVault, Hasher, PublicKey, SecretVault, Signer, SymmetricVault, Verifier,
+use ockam_core::vault::{
+    AsymmetricVault, Hasher, PublicKey, SecretType, SecretVault, Signer, SymmetricVault, Verifier,
 };
+use ockam_core::{compat::vec::Vec, AsyncTryClone};
+use zeroize::Zeroize;
 
 mod error;
 pub use error::*;
@@ -25,7 +25,8 @@ pub use new_key_exchanger::*;
 
 /// Represents and (X)EdDSA or ECDSA signature
 /// from Ed25519 or P-256
-#[derive(Clone, Copy)]
+#[derive(Clone, Zeroize)]
+#[zeroize(drop)]
 pub struct Signature([u8; 64]);
 
 impl AsRef<[u8; 64]> for Signature {
@@ -48,12 +49,13 @@ impl From<&[u8; 64]> for Signature {
 
 impl core::fmt::Debug for Signature {
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-        write!(f, "Signature {{ {} }}", encode(self.0.as_ref()))
+        write!(f, "Signature {{ {} }}", hex::encode(self.0.as_ref()))
     }
 }
 
 /// Represents all the keys and signature to send to an enrollee
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Zeroize)]
+#[zeroize(drop)]
 pub struct PreKeyBundle {
     identity_key: PublicKey,
     signed_prekey: PublicKey,
@@ -66,10 +68,10 @@ impl PreKeyBundle {
     /// Convert the prekey bundle to a byte array
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut output = Vec::new();
-        output.extend_from_slice(self.identity_key.as_ref());
-        output.extend_from_slice(self.signed_prekey.as_ref());
+        output.extend_from_slice(self.identity_key.data());
+        output.extend_from_slice(self.signed_prekey.data());
         output.extend_from_slice(self.signature_prekey.0.as_ref());
-        output.extend_from_slice(self.one_time_prekey.as_ref());
+        output.extend_from_slice(self.one_time_prekey.data());
         output
     }
 }
@@ -81,10 +83,11 @@ impl TryFrom<&[u8]> for PreKeyBundle {
         if data.len() != Self::SIZE {
             return Err(X3DHError::MessageLenMismatch.into());
         }
-        let identity_key = PublicKey::new(array_ref![data, 0, 32].to_vec());
-        let signed_prekey = PublicKey::new(array_ref![data, 32, 32].to_vec());
+        let identity_key = PublicKey::new(array_ref![data, 0, 32].to_vec(), SecretType::X25519);
+        let signed_prekey = PublicKey::new(array_ref![data, 32, 32].to_vec(), SecretType::X25519);
         let signature_prekey = Signature(*array_ref![data, 64, 64]);
-        let one_time_prekey = PublicKey::new(array_ref![data, 128, 32].to_vec());
+        let one_time_prekey =
+            PublicKey::new(array_ref![data, 128, 32].to_vec(), SecretType::X25519);
         Ok(Self {
             identity_key,
             signed_prekey,
@@ -129,17 +132,14 @@ impl<D> X3dhVault for D where
 mod tests {
     use super::*;
     use ockam_key_exchange_core::{KeyExchanger, NewKeyExchanger};
-    use ockam_vault::SoftwareVault;
-    use ockam_vault_sync_core::VaultSync;
+    use ockam_vault::Vault;
 
     #[allow(non_snake_case)]
     #[test]
     fn full_flow__correct_credentials__keys_should_match() {
-        let (mut ctx, mut exec) = ockam_node::start_node();
+        let (mut ctx, mut exec) = ockam_node::NodeBuilder::without_access_control().build();
         exec.execute(async move {
-            let mut vault = VaultSync::create(&ctx, SoftwareVault::default())
-                .await
-                .unwrap();
+            let vault = Vault::create();
 
             let key_exchanger = X3dhNewKeyExchanger::new(vault.async_try_clone().await.unwrap());
 
@@ -168,13 +168,13 @@ mod tests {
 
             assert_eq!(initiator.h(), responder.h());
 
-            let s1 = vault.secret_export(&initiator.encrypt_key()).await.unwrap();
-            let s2 = vault.secret_export(&responder.decrypt_key()).await.unwrap();
+            let s1 = vault.secret_export(initiator.encrypt_key()).await.unwrap();
+            let s2 = vault.secret_export(responder.decrypt_key()).await.unwrap();
 
             assert_eq!(s1, s2);
 
-            let s1 = vault.secret_export(&initiator.decrypt_key()).await.unwrap();
-            let s2 = vault.secret_export(&responder.encrypt_key()).await.unwrap();
+            let s1 = vault.secret_export(initiator.decrypt_key()).await.unwrap();
+            let s2 = vault.secret_export(responder.encrypt_key()).await.unwrap();
 
             assert_eq!(s1, s2);
             ctx.stop().await.unwrap();

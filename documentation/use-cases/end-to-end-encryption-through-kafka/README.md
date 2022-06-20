@@ -62,7 +62,7 @@ intermediaries. Our application’s vulnerability surface quickly grows and beco
 
 ### Mutually Authenticated, End-to-End Encrypted Secure Channels with Ockam
 
-[Ockam](https://github.com/ockam-network/ockam) is a suite of programming libraries that make it simple
+[Ockam](https://github.com/build-trust/ockam) is a suite of programming libraries that make it simple
 for applications to create any number of lightweight, mutually-authenticated, end-to-end encrypted
 secure channels. These channels use cryptography to guarantee end-to-end integrity, authenticity, and
 confidentiality of messages.
@@ -111,7 +111,7 @@ To make it easy to try, we've created a Docker image that contains both Alice an
 1. Run Bob’s program:
 
     ```
-    docker run --rm --interactive --tty ghcr.io/ockam-network/examples/kafka ockam_kafka_bob
+    docker run --rm --interactive --tty ghcr.io/build-trust/examples/kafka ockam_kafka_bob
     ```
 
     The Bob program creates a Secure Channel Listener to accept requests to begin an Authenticated Key
@@ -130,7 +130,7 @@ To make it easy to try, we've created a Docker image that contains both Alice an
 3. In a separate terminal window, run the Alice program:
 
     ```
-    docker run --rm --interactive --tty ghcr.io/ockam-network/examples/kafka ockam_kafka_alice
+    docker run --rm --interactive --tty ghcr.io/build-trust/examples/kafka ockam_kafka_alice
     ```
 
 4. The Alice program will stop to ask for the stream addresses that were printed in step 2. Enter them.
@@ -168,7 +168,7 @@ cargo new --lib ockam_kafka && cd ockam_kafka && mkdir examples &&
 ```
 
 If the above instructions don't work on your machine please
-[post a question](https://github.com/ockam-network/ockam/discussions/1642),
+[post a question](https://github.com/build-trust/ockam/discussions/1642),
 we would love to help.
 
 #### Bob
@@ -177,9 +177,13 @@ Create a file at `examples/ockam_kafka_bob.rs` and copy the below code snippet t
 
 ```rust
 // examples/ockam_kafka_bob.rs
-use ockam::{route, Context, Entity, Result, TrustEveryonePolicy, Vault};
-use ockam::{stream::Stream, Routed, TcpTransport, Unique, Worker, TCP};
-
+use ockam::{
+    identity::{Identity, TrustEveryonePolicy},
+    route,
+    stream::Stream,
+    vault::Vault,
+    Context, Result, Routed, TcpTransport, Worker, TCP,
+};
 struct Echoer;
 
 // Define an Echoer worker that prints any message it receives and
@@ -203,10 +207,10 @@ async fn main(ctx: Context) -> Result<()> {
     TcpTransport::create(&ctx).await?;
 
     // Create a Vault to safely store secret keys for Bob.
-    let vault = Vault::create(&ctx).await?;
+    let vault = Vault::create();
 
-    // Create an Entity to represent Bob.
-    let mut bob = Entity::create(&ctx, &vault).await?;
+    // Create an Identity to represent Bob.
+    let bob = Identity::create(&ctx, &vault).await?;
 
     // Create a secure channel listener for Bob that will wait for requests to
     // initiate an Authenticated Key Exchange.
@@ -222,14 +226,14 @@ async fn main(ctx: Context) -> Result<()> {
     // - a sender (producer) for the `bob_to_alice` stream.
 
     let node_in_hub = (TCP, "1.node.ockam.network:4000");
-    let b_to_a_stream_address = Unique::with_prefix("bob_to_alice");
-    let a_to_b_stream_address = Unique::with_prefix("alice_to_bob");
+    let b_to_a_stream_address = ockam::unique_with_prefix("bob_to_alice");
+    let a_to_b_stream_address = ockam::unique_with_prefix("alice_to_bob");
 
     Stream::new(&ctx)
         .await?
         .stream_service("stream_kafka")
         .index_service("stream_kafka_index")
-        .client_id(Unique::with_prefix("bob"))
+        .client_id(ockam::unique_with_prefix("bob"))
         .connect(
             route![node_in_hub],
             b_to_a_stream_address.clone(),
@@ -257,8 +261,14 @@ Create a file at `examples/ockam_kafka_alice.rs` and copy the below code snippet
 
 ```rust
 // examples/ockam_kafka_alice.rs
-use ockam::{route, Context, Entity, Result, TrustEveryonePolicy, Vault};
-use ockam::{stream::Stream, TcpTransport, Unique, TCP};
+use ockam::{
+    identity::{Identity, TrustEveryonePolicy},
+    route,
+    stream::Stream,
+    unique_with_prefix,
+    vault::Vault,
+    Context, Result, TcpTransport, TCP,
+};
 use std::io;
 
 #[ockam::node]
@@ -267,10 +277,10 @@ async fn main(mut ctx: Context) -> Result<()> {
     TcpTransport::create(&ctx).await?;
 
     // Create a Vault to safely store secret keys for Alice.
-    let vault = Vault::create(&ctx).await?;
+    let vault = Vault::create();
 
-    // Create an Entity to represent Alice.
-    let mut alice = Entity::create(&ctx, &vault).await?;
+    // Create an Identity to represent Alice.
+    let alice = Identity::create(&ctx, &vault).await?;
 
     // This program expects that Bob has created two streams
     // bob_to_alice and alice_to_bob on the cloud node at 1.node.ockam.network:4000
@@ -300,7 +310,7 @@ async fn main(mut ctx: Context) -> Result<()> {
         .await?
         .stream_service("stream_kafka")
         .index_service("stream_kafka_index")
-        .client_id(Unique::with_prefix("alice"))
+        .client_id(unique_with_prefix("alice"))
         .connect(route![node_in_hub], a_to_b_stream_address, b_to_a_stream_address)
         .await?;
 

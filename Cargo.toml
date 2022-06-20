@@ -15,12 +15,9 @@ members = [
     "implementations/rust/ockam/*/src/..",
     "examples/rust/*/examples/..",
 
-    "tools/ockam-hub-cli",
     "tools/docs/example_runner",
-    "tools/docs/example_blocks"
+    "tools/docs/example_test_helper",
+    "tools/docs/example_blocks",
 ]
 
-exclude = [
-    "implementations/rust/ockam/ockam_examples/WIP",
-    "implementations/rust/ockam/ockam_examples/example_projects",
-]
+exclude = ["implementations/rust/ockam/ockam_examples/example_projects"]

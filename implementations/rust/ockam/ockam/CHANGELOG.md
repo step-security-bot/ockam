@@ -1,9 +1,273 @@
 # Changelog
+All notable changes to this project will be documented in this file.
 
-All notable changes to this crate will be documented in this file.
-
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## unreleased
+
+### Added
+
+- Add `#[ockam::node]` macro attribute `access_control`
+
+### Changed
+
+- Implement initial access control prototype
+- Refinements to initial access control prototype
+- Move nodeman protocol definitions to submodule
+- Move node manager service to ockam_api crate
+- Create node builder for easier node initialisation
+
+### Fixed
+
+- Improve the usability of ockam command
+
+## 0.60.0 - 2022-06-06
+
+### Added
+
+- Add basic node manager service
+- Add pid query to nodeman worker
+
+### Changed
+
+- Implement new `Vault` serialization
+- Rename new_context to new_detached
+- Implement basic ockam_command config module
+- Updated dependencies
+
+## 0.59.0 - 2022-05-23
+
+### Changed
+
+- Change description of the ockam crate
+- Updated dependencies
+
+### Fixed
+
+- Fix flaky transport tests
+
+## 0.58.0 - 2022-05-09
+
+### Changed
+
+- Updated dependencies
+
+## 0.57.0 - 2022-05-05
+
+### Changed
+
+- Updated dependencies
+
+## 0.56.0 - 2022-05-04
+
+### Changed
+
+- Updated dependencies
+
+## 0.55.0 - 2022-05-04
+
+### Changed
+
+- Updated dependencies
+
+## 0.54.0 - 2022-04-25
+
+### Added
+
+- Add "crate" attribute to async_try_clone_derive macro
+
+### Changed
+
+- Updated dependencies
+
+## 0.53.0 - 2022-04-19
+
+### Changed
+
+- Rename error2 to error
+- Updated dependencies
+
+### Fixed
+
+- Errors: fix ockam
+- Fix various clippy and rustfmt lints
+
+### Removed
+
+- Remove thiserror as it does not support no_std
+
+## 0.52.0 - 2022-04-11
+
+### Added
+
+- Add docs and rename some of the request/response types in `ockam`
+- Add "crate" attribute to "node" macro
+
+### Changed
+
+- Get rid of common `RouterMessage` in favor of transport-specific structs (ble, ws)
+- Reorganize and document `ockam` crate
+- Tune up some of the documentation
+- Rename `mod remote_forwarder` module to `mod remote`, fix examples
+- Ensure more documentation ends up in the right place
+- Implement miniature `ockam` command for demo
+- Re-export `DelayedEvent` from ockam crate
+- Vault updates
+- Updated dependencies
+
+### Fixed
+
+- Insert a temporary mechanism to improve error messages
+- Fix clippy warnings
+
+## 0.51.0 - 2022-04-04
+
+### Changed
+
+- Updated dependencies
+
+## 0.50.0 - 2022-03-28
+
+### Added
+
+- Add basic pipe builder usage documentation
+- Support dynamic pipe handshake with behaviour handlers
+- Support ordering enforcing pipes
+
+### Changed
+
+- Rename heartbeat to delayed event
+- Sketch initial pipe2 api
+- System graph initialisation builder
+- Provide builder init mechanism for system handers
+- Mock up pipe builder initialisation
+- Allow worker system to use different message types
+- Very basic pipe example with new api
+- Implement basic sender resend handler
+- Pipe2 dynamic pipe handshakes
+- Basic delivery ack handler implementation
+- Send resend notify events to delivery handler
+- Update system handler trait documentation
+- Run rustfmt on ockam crate
+- Various clippy fixes
+- Updated dependencies
+
+### Fixed
+
+- Fix ockam::test macro tests
+- Fix ockam::node macro tests
+- Imports ockam context as used in the input function
+- No_std support for system builders and hooks
+
+### Removed
+
+- Remove stray allow(unused)
+
+## 0.47.0 - 2022-02-22
+
+### Added
+
+- Add `Echoer` worker to ockam crate
+- Add static forwarding support for `RemoteForwarder`
+
+## 0.46.0 - 2022-02-08
+
+### Changed
+
+- Rename `Profile` -> `Identity`
+- Rename crate ockam_entity -> ockam_identity
+- Update crate edition to 2021
+
+## 0.43.0 - 2022-01-10
+
+### Added
+
+- Add no_main arg support to ockam::node macro
+
+### Changed
+
+- Improve formatting of `Cargo.toml`s  and add `rust-version` 1.56.0
+
+## 0.42.0 - 2021-12-13
+
+### Added
+
+- Add a test for full pipe behaviour stack
+
+### Changed
+
+- Introduce nested pipe behaviour test
+- Initial ockam channel implementation
+- Simplify channel creation handshake
+- Change uses of `ockam_vault_core::Foo` to use `ockam_core::vault::Foo` across crates
+
+### Fixed
+
+- Fix channel channel behavior and add tests
+- Clippy style update
+- Update channels with no_std support
+
+## 0.41.0 - 2021-12-06
+
+### Changed
+
+- Merge macro crates
+
+### Fixed
+
+- Change context import from ockam_node to crate
+- Fix pipe test and typos
+
+### Removed
+
+- Remove symlinks to `DEVELOP.md` and `LICENSE`
+- Remove need for separate macro crates
+
+## v0.40.0 - 2021-11-22
+
+
+### Added
+
+- Add pipemodifier return value to behaviour stack
+
+### Changed
+
+- Deny warnings in ci, not local development
+- Basic pipe sender implementation
+- Implement static pipes
+- Implement pipe sender resend logic
+- Implement full pipe resend behaviour
+- Move pipe tests into a separate module
+- Initial ordered pipe behaviour implementation
+- Enable pipe behavior stacks to be cloned
+- Implement dynamic pipe handshake initialisation
+
+### Fixed
+
+- Enable ockam crate to use ockam_node_test_attribute
+- Fix compilation for no_std environments
+
+
+## v0.39.0 - 2021-11-15
+### Changed
+- Dependencies updated
+- change `Doesnt` to `DoesNot` for enum variants
+
+## v0.38.0 - 2021-11-08
+### Changed
+- handle failed fetch_intervals gracefully
+- Dependencies updated
+
+## v0.37.0 - 2021-11-01
+### Changed
+- Explicitly derive Message trait
+- Dependencies updated
+
+## v0.36.0 - 2021-10-26
+### Changed
+- Clippy improvements
+- Dependencies updated
 
 ## v0.35.0 - 2021-10-25
 ### Added

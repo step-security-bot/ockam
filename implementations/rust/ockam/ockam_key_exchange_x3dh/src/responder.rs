@@ -1,16 +1,17 @@
 use crate::{PreKeyBundle, Signature, X3DHError, X3dhVault, CSUITE};
+use alloc::vec;
 use arrayref::array_ref;
 use ockam_core::compat::{
     string::{String, ToString},
     vec::Vec,
 };
+use ockam_core::vault::{
+    KeyId, PublicKey, SecretAttributes, SecretPersistence, SecretType, AES256_SECRET_LENGTH,
+    CURVE25519_SECRET_LENGTH,
+};
 use ockam_core::Result;
 use ockam_core::{async_trait, compat::boxed::Box};
 use ockam_key_exchange_core::{CompletedKeyExchange, KeyExchanger};
-use ockam_vault_core::{
-    PublicKey, Secret, SecretAttributes, SecretPersistence, SecretType, AES256_SECRET_LENGTH,
-    CURVE25519_SECRET_LENGTH,
-};
 
 #[derive(Debug)]
 enum ResponderState {
@@ -25,16 +26,16 @@ enum ResponderState {
 /// The responder of X3DH creates a prekey bundle that can be used to establish a shared
 /// secret key with another party that can use
 pub struct Responder<V: X3dhVault> {
-    identity_key: Option<Secret>,
-    signed_prekey: Option<Secret>,
-    one_time_prekey: Option<Secret>,
+    identity_key: Option<KeyId>,
+    signed_prekey: Option<KeyId>,
+    one_time_prekey: Option<KeyId>,
     state: ResponderState,
     vault: V,
     completed_key_exchange: Option<CompletedKeyExchange>,
 }
 
 impl<V: X3dhVault> Responder<V> {
-    pub(crate) fn new(vault: V, identity_key: Option<Secret>) -> Self {
+    pub(crate) fn new(vault: V, identity_key: Option<KeyId>) -> Self {
         Self {
             identity_key,
             signed_prekey: None,
@@ -47,12 +48,12 @@ impl<V: X3dhVault> Responder<V> {
 
     async fn prologue(&mut self) -> Result<()> {
         let p_atts = SecretAttributes::new(
-            SecretType::Curve25519,
+            SecretType::X25519,
             SecretPersistence::Persistent,
             CURVE25519_SECRET_LENGTH,
         );
         let e_atts = SecretAttributes::new(
-            SecretType::Curve25519,
+            SecretType::X25519,
             SecretPersistence::Ephemeral,
             CURVE25519_SECRET_LENGTH,
         );
@@ -103,7 +104,7 @@ impl<V: X3dhVault> KeyExchanger for Responder<V> {
                 let signed_prekey_pub = self.vault.secret_public_key_get(signed_prekey).await?;
                 let signature = self
                     .vault
-                    .sign(identity_secret_key, signed_prekey_pub.as_ref())
+                    .sign(identity_secret_key, signed_prekey_pub.data())
                     .await?;
                 let identity_key = self
                     .vault
@@ -137,8 +138,10 @@ impl<V: X3dhVault> KeyExchanger for Responder<V> {
                 }
                 self.prologue().await?;
 
-                let other_identity_pubkey = PublicKey::new(array_ref![response, 0, 32].to_vec());
-                let other_ephemeral_pubkey = PublicKey::new(array_ref![response, 32, 32].to_vec());
+                let other_identity_pubkey =
+                    PublicKey::new(array_ref![response, 0, 32].to_vec(), SecretType::X25519);
+                let other_ephemeral_pubkey =
+                    PublicKey::new(array_ref![response, 32, 32].to_vec(), SecretType::X25519);
 
                 let signed_prekey = self.signed_prekey.as_ref().ok_or(X3DHError::InvalidState)?;
                 let one_time_prekey = self

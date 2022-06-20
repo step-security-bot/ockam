@@ -1,102 +1,166 @@
-use crate::relay::ShutdownHandle;
-use crate::tokio::sync::mpsc::{channel, Receiver, Sender};
-use crate::{error::Error, relay::RelayMessage};
-use ockam_core::compat::vec::Vec;
-use ockam_core::{Address, AddressSet};
+use crate::channel_types::{small_channel, MessageSender, SmallReceiver, SmallSender};
+use crate::{
+    error::{NodeError, NodeReason, RouterReason, WorkerReason},
+    relay::RelayMessage,
+    router::SenderPair,
+};
+use core::{fmt, sync::atomic::AtomicUsize};
+use ockam_core::compat::{string::String, sync::Arc, vec::Vec};
+use ockam_core::{Address, AddressSet, Error, Result, TransportType};
 
 /// Messages sent from the Node to the Executor
 #[derive(Debug)]
 pub enum NodeMessage {
     /// Start a new worker and store the send handle
-    StartWorker(AddressSet, Sender<RelayMessage>, Sender<NodeReplyResult>),
+    StartWorker {
+        /// The set of addresses in use by this worker
+        addrs: AddressSet,
+        /// Pair of senders to the worker relay (msgs and ctrl)
+        senders: SenderPair,
+        /// A detached context/ "worker" runs no relay state
+        detached: bool,
+        /// A mechanism to read channel fill-state for a worker
+        mailbox_count: Arc<AtomicUsize>,
+        /// Reply channel for command confirmation
+        reply: SmallSender<NodeReplyResult>,
+    },
     /// Return a list of all worker addresses
-    ListWorkers(Sender<NodeReplyResult>),
+    ListWorkers(SmallSender<NodeReplyResult>),
+    /// Add an existing address to a cluster
+    SetCluster(Address, String, SmallSender<NodeReplyResult>),
     /// Stop an existing worker
-    StopWorker(Address, Sender<NodeReplyResult>),
-    /// Start a new processor and store the send and shutdown handles
-    StartProcessor(
-        Address,
-        Sender<RelayMessage>,
-        Sender<NodeReplyResult>,
-        ShutdownHandle,
-    ),
+    StopWorker(Address, bool, SmallSender<NodeReplyResult>),
+    /// Start a new processor
+    StartProcessor(Address, SenderPair, SmallSender<NodeReplyResult>),
     /// Stop an existing processor
-    StopProcessor(Address, Sender<NodeReplyResult>),
+    StopProcessor(Address, SmallSender<NodeReplyResult>),
     /// Stop the node (and all workers)
-    StopNode,
+    StopNode(ShutdownType, SmallSender<NodeReplyResult>),
+    /// Immediately stop the node runtime
+    AbortNode,
+    /// Let the router know a particular address has stopped
+    StopAck(Address),
     /// Request the sender for a worker address
-    SenderReq(Address, Sender<NodeReplyResult>),
+    SenderReq(Address, SmallSender<NodeReplyResult>),
     /// Register a new router for a route id type
-    Router(u8, Address, Sender<NodeReplyResult>),
-    /// Check if a given address is already registered
-    CheckAddress(AddressSet, Sender<NodeReplyResult>),
+    Router(TransportType, Address, SmallSender<NodeReplyResult>),
+    /// Message the router to set an address as "ready"
+    SetReady(Address),
+    /// Check whether an address has been marked as "ready"
+    CheckReady(Address, SmallSender<NodeReplyResult>),
+}
+
+impl fmt::Display for NodeMessage {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            NodeMessage::StartWorker { .. } => write!(f, "StartWorker"),
+            NodeMessage::ListWorkers(_) => write!(f, "ListWorkers"),
+            NodeMessage::SetCluster(_, _, _) => write!(f, "SetCluster"),
+            NodeMessage::StopWorker(_, _, _) => write!(f, "StopWorker"),
+            NodeMessage::StartProcessor(_, _, _) => write!(f, "StartProcessor"),
+            NodeMessage::StopProcessor(_, _) => write!(f, "StopProcessor"),
+            NodeMessage::StopNode(_, _) => write!(f, "StopNode"),
+            NodeMessage::AbortNode => write!(f, "AbortNode"),
+            NodeMessage::StopAck(_) => write!(f, "StopAck"),
+            NodeMessage::SenderReq(_, _) => write!(f, "SenderReq"),
+            NodeMessage::Router(_, _, _) => write!(f, "Router"),
+            NodeMessage::SetReady(_) => write!(f, "SetReady"),
+            NodeMessage::CheckReady(_, _) => write!(f, "CheckReady"),
+        }
+    }
 }
 
 impl NodeMessage {
     /// Create a start worker message
+    ///
+    /// * `senders`: message and command senders for the relay
+    ///
+    /// * `detached`: indicate whether this worker address has a full
+    ///               relay behind it that can respond to shutdown
+    ///               commands.  Setting this to `true` will disable
+    ///               stop ACK support in the router
     pub fn start_worker(
-        address: AddressSet,
-        sender: Sender<RelayMessage>,
-    ) -> (Self, Receiver<NodeReplyResult>) {
-        let (tx, rx) = channel(1);
-        (Self::StartWorker(address, sender, tx), rx)
+        addrs: AddressSet,
+        senders: SenderPair,
+        detached: bool,
+        mailbox_count: Arc<AtomicUsize>,
+    ) -> (Self, SmallReceiver<NodeReplyResult>) {
+        let (reply, rx) = small_channel();
+        (
+            Self::StartWorker {
+                addrs,
+                senders,
+                detached,
+                mailbox_count,
+                reply,
+            },
+            rx,
+        )
     }
 
     /// Create a start worker message
     pub fn start_processor(
         address: Address,
-        sender: Sender<RelayMessage>,
-        shutdown_handle: ShutdownHandle,
-    ) -> (Self, Receiver<NodeReplyResult>) {
-        let (tx, rx) = channel(1);
-        (
-            Self::StartProcessor(address, sender, tx, shutdown_handle),
-            rx,
-        )
+        senders: SenderPair,
+    ) -> (Self, SmallReceiver<NodeReplyResult>) {
+        let (tx, rx) = small_channel();
+        (Self::StartProcessor(address, senders, tx), rx)
     }
 
     /// Create a stop worker message and reply receiver
-    pub fn stop_processor(address: Address) -> (Self, Receiver<NodeReplyResult>) {
-        let (tx, rx) = channel(1);
+    pub fn stop_processor(address: Address) -> (Self, SmallReceiver<NodeReplyResult>) {
+        let (tx, rx) = small_channel();
         (Self::StopProcessor(address, tx), rx)
     }
 
     /// Create a list worker message and reply receiver
-    pub fn list_workers() -> (Self, Receiver<NodeReplyResult>) {
-        let (tx, rx) = channel(1);
+    pub fn list_workers() -> (Self, SmallReceiver<NodeReplyResult>) {
+        let (tx, rx) = small_channel();
         (Self::ListWorkers(tx), rx)
     }
 
+    /// Create a set cluster message and reply receiver
+    pub fn set_cluster(addr: Address, label: String) -> (Self, SmallReceiver<NodeReplyResult>) {
+        let (tx, rx) = small_channel();
+        (Self::SetCluster(addr, label, tx), rx)
+    }
+
     /// Create a stop worker message and reply receiver
-    pub fn stop_worker(address: Address) -> (Self, Receiver<NodeReplyResult>) {
-        let (tx, rx) = channel(1);
-        (Self::StopWorker(address, tx), rx)
+    pub fn stop_worker(address: Address, detached: bool) -> (Self, SmallReceiver<NodeReplyResult>) {
+        let (tx, rx) = small_channel();
+        (Self::StopWorker(address, detached, tx), rx)
     }
 
     /// Create a stop node message
-    pub fn stop_node() -> Self {
-        Self::StopNode
+    pub fn stop_node(tt: ShutdownType) -> (Self, SmallReceiver<NodeReplyResult>) {
+        let (tx, rx) = small_channel();
+        (Self::StopNode(tt, tx), rx)
     }
 
     /// Create a sender request message and reply receiver
-    pub fn sender_request(route: Address) -> (Self, Receiver<NodeReplyResult>) {
-        let (tx, rx) = channel(1);
+    pub fn sender_request(route: Address) -> (Self, SmallReceiver<NodeReplyResult>) {
+        let (tx, rx) = small_channel();
         (Self::SenderReq(route, tx), rx)
     }
 
-    /// Create a message to check the availability of an address set
-    pub fn check_address(addrs: AddressSet) -> (Self, Receiver<NodeReplyResult>) {
-        let (tx, rx) = channel(1);
-        (Self::CheckAddress(addrs, tx), rx)
+    /// Create a SetReady message and reply receiver
+    pub fn set_ready(addr: Address) -> Self {
+        Self::SetReady(addr)
+    }
+
+    /// Create a GetReady message and reply receiver
+    pub fn get_ready(addr: Address) -> (Self, SmallReceiver<NodeReplyResult>) {
+        let (tx, rx) = small_channel();
+        (Self::CheckReady(addr, tx), rx)
     }
 }
 
 /// The reply/result of a Node
-pub type NodeReplyResult = Result<NodeReply, NodeError>;
+pub type NodeReplyResult = core::result::Result<RouterReply, Error>;
 
 /// Successful return values from a router command
 #[derive(Debug)]
-pub enum NodeReply {
+pub enum RouterReply {
     /// Success with no payload
     Ok,
     /// A list of worker addresses
@@ -106,50 +170,92 @@ pub enum NodeReply {
         /// The address a message is being sent to
         addr: Address,
         /// The relay sender
-        sender: Sender<RelayMessage>,
+        sender: MessageSender<RelayMessage>,
         /// Indicate whether the relay message needs to be constructed
         /// with router wrapping.
         wrap: bool,
     },
+    /// Indicate the 'ready' state of an address
+    State(bool),
 }
 
-/// Failure states from a router command
-#[derive(Debug)]
-pub enum NodeError {
-    /// No such worker
-    NoSuchWorker(Address),
-    /// No such processor
-    NoSuchProcessor(Address),
-    /// Worker already exists
-    WorkerExists(Address),
-    /// Router already exists
-    RouterExists,
+/// Specify the type of node shutdown
+///
+/// For most users `ShutdownType::Graceful()` is recommended.  The
+/// `Default` implementation uses a 1 second timeout.
+#[derive(Debug, Copy, Clone)]
+#[non_exhaustive]
+pub enum ShutdownType {
+    /// Execute a graceful shutdown given a maximum timeout
+    ///
+    /// The following steps will be taken by the internal router
+    /// during graceful shutdown procedure:
+    ///
+    /// * Signal clusterless workers to stop
+    /// * Wait for shutdown ACK hooks from worker set
+    /// * Signal worker clusters in reverse-creation order to stop
+    /// * Wait for shutdown ACK hooks from each cluster before moving onto the
+    ///   next
+    /// * All shutdown-signalled workers may process their entire mailbox,
+    ///   while not allowing new messages to be queued
+    ///
+    /// Graceful shutdown procedure will be pre-maturely terminated
+    /// when reaching the timeout (failover into `Immediate`
+    /// strategy).  **A given timeout of `0` will wait forever!**
+    Graceful(u8),
+    /// Immediately shutdown workers and run shutdown hooks
+    ///
+    /// This strategy can lead to data loss:
+    ///
+    /// * Unhandled mailbox messages will be dropped
+    /// * Shutdown hooks may not be able to send messages
+    ///
+    /// This strategy is not recommended for general use, but will be
+    /// selected as a failover, if the `Graceful` strategy reaches its
+    /// timeout limit.
+    Immediate,
 }
 
-impl NodeReply {
+impl Default for ShutdownType {
+    fn default() -> Self {
+        Self::Graceful(1)
+    }
+}
+
+impl RouterReply {
     /// Return [NodeReply::Ok]
     pub fn ok() -> NodeReplyResult {
-        Ok(NodeReply::Ok)
+        Ok(RouterReply::Ok)
     }
 
-    /// Return [NodeError::NoSuchWorker]
-    pub fn no_such_worker(a: Address) -> NodeReplyResult {
-        Err(NodeError::NoSuchWorker(a))
+    /// Return [NodeReply::State]
+    pub fn state(b: bool) -> NodeReplyResult {
+        Ok(RouterReply::State(b))
     }
 
-    /// Return [NodeError::NoSuchProcessor]
-    pub fn no_such_processor(a: Address) -> NodeReplyResult {
-        Err(NodeError::NoSuchProcessor(a))
+    /// Return [NodeError::NoSuchAddress]
+    pub fn no_such_address(a: Address) -> NodeReplyResult {
+        Err(NodeError::Address(a).not_found())
     }
 
     /// Return [NodeError::WorkerExists] for the given address
     pub fn worker_exists(a: Address) -> NodeReplyResult {
-        Err(NodeError::WorkerExists(a))
+        Err(NodeError::Address(a).already_exists())
     }
 
     /// Return [NodeError::RouterExists]
     pub fn router_exists() -> NodeReplyResult {
-        Err(NodeError::RouterExists)
+        Err(NodeError::RouterState(RouterReason::Duplicate).already_exists())
+    }
+
+    /// Return [NodeReply::Rejected(reason)]
+    pub fn node_rejected(reason: NodeReason) -> NodeReplyResult {
+        Err(NodeError::NodeState(reason).conflict())
+    }
+
+    /// Return [NodeReply::Rejected(reason)]
+    pub fn worker_rejected(reason: WorkerReason) -> NodeReplyResult {
+        Err(NodeError::WorkerState(reason).conflict())
     }
 
     /// Return [NodeReply::Workers] for the given addresses
@@ -158,31 +264,43 @@ impl NodeReply {
     }
 
     /// Return [NodeReply::Sender] for the given information
-    pub fn sender(addr: Address, sender: Sender<RelayMessage>, wrap: bool) -> NodeReplyResult {
-        Ok(NodeReply::Sender { addr, sender, wrap })
+    pub fn sender(
+        addr: Address,
+        sender: MessageSender<RelayMessage>,
+        wrap: bool,
+    ) -> NodeReplyResult {
+        Ok(RouterReply::Sender { addr, sender, wrap })
     }
 
     /// Consume the wrapper and return [NodeReply::Sender]
-    pub fn take_sender(self) -> Result<(Address, Sender<RelayMessage>, bool), Error> {
+    pub fn take_sender(self) -> Result<(Address, MessageSender<RelayMessage>, bool)> {
         match self {
             Self::Sender { addr, sender, wrap } => Ok((addr, sender, wrap)),
-            _ => Err(Error::InternalIOFailure),
+            _ => Err(NodeError::NodeState(NodeReason::Unknown).internal()),
         }
     }
 
     /// Consume the wrapper and return [NodeReply::Workers]
-    pub fn take_workers(self) -> Result<Vec<Address>, Error> {
+    pub fn take_workers(self) -> Result<Vec<Address>> {
         match self {
             Self::Workers(w) => Ok(w),
-            _ => Err(Error::InternalIOFailure),
+            _ => Err(NodeError::NodeState(NodeReason::Unknown).internal()),
+        }
+    }
+
+    /// Consume the wrapper and return [NodeReply::State]
+    pub fn take_state(self) -> Result<bool> {
+        match self {
+            Self::State(b) => Ok(b),
+            _ => Err(NodeError::NodeState(NodeReason::Unknown).internal()),
         }
     }
 
     /// Returns Ok if self is [NodeReply::Ok]
-    pub fn is_ok(self) -> Result<(), Error> {
+    pub fn is_ok(self) -> Result<()> {
         match self {
             Self::Ok => Ok(()),
-            _ => Err(Error::InternalIOFailure),
+            _ => Err(NodeError::NodeState(NodeReason::Unknown).internal()),
         }
     }
 }

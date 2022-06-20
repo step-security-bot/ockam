@@ -1,18 +1,18 @@
-use crate::{
-    atomic::{self, ArcBool},
-    TcpRouterHandle, WorkerPair,
-};
-use ockam_core::async_trait;
+use crate::{TcpRouterHandle, TcpSendWorker};
+use ockam_core::{async_trait, compat::net::SocketAddr, AsyncTryClone};
 use ockam_core::{Address, Processor, Result};
 use ockam_node::Context;
 use ockam_transport_core::TransportError;
-use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tracing::{debug, trace};
 
+/// A TCP Listen processor
+///
+/// TCP listen processors are created by `TcpTransport`
+/// after a call is made to
+/// [`TcpTransport::listen`](crate::TcpTransport::listen).
 pub(crate) struct TcpListenProcessor {
     inner: TcpListener,
-    run: ArcBool,
     router_handle: TcpRouterHandle,
 }
 
@@ -21,22 +21,20 @@ impl TcpListenProcessor {
         ctx: &Context,
         router_handle: TcpRouterHandle,
         addr: SocketAddr,
-        run: ArcBool,
-    ) -> Result<()> {
-        let waddr = Address::random(0);
-
+    ) -> Result<SocketAddr> {
         debug!("Binding TcpListener to {}", addr);
         let inner = TcpListener::bind(addr)
             .await
             .map_err(TransportError::from)?;
+        let saddr = inner.local_addr().map_err(TransportError::from)?;
         let worker = Self {
             inner,
-            run,
             router_handle,
         };
 
-        ctx.start_processor(waddr, worker).await?;
-        Ok(())
+        ctx.start_processor(Address::random_local(), worker).await?;
+
+        Ok(saddr)
     }
 }
 
@@ -44,23 +42,36 @@ impl TcpListenProcessor {
 impl Processor for TcpListenProcessor {
     type Context = Context;
 
+    async fn initialize(&mut self, ctx: &mut Context) -> Result<()> {
+        ctx.set_cluster(crate::CLUSTER_NAME).await
+    }
+
     async fn process(&mut self, ctx: &mut Self::Context) -> Result<bool> {
-        // FIXME: see ArcBool future note
-        if atomic::check(&self.run) {
-            trace!("Waiting for incoming TCP connection...");
+        debug!("Waiting for incoming TCP connection...");
 
-            // Wait for an incoming connection
-            let (stream, peer) = self.inner.accept().await.map_err(TransportError::from)?;
+        // Wait for an incoming connection
+        let (stream, peer) = self.inner.accept().await.map_err(TransportError::from)?;
+        debug!("TCP connection accepted");
 
-            // And spawn a connection worker for it
-            let pair = WorkerPair::new_with_stream(ctx, stream, peer, vec![]).await?;
+        let handle_clone = self.router_handle.async_try_clone().await?;
+        // And create a connection worker for it
+        let (worker, pair) =
+            TcpSendWorker::new_pair(ctx, handle_clone, Some(stream), peer, Vec::new()).await?;
 
-            // Register the connection with the local TcpRouter
-            self.router_handle.register(&pair).await?;
+        // Register the connection with the local TcpRouter
+        self.router_handle.register(&pair).await?;
+        debug!(%peer, "TCP connection registered");
 
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        trace! {
+            peer = %peer,
+            tx_addr = %pair.tx_addr(),
+            int_addr = %worker.internal_addr(),
+            "starting tcp connection worker"
+        };
+
+        ctx.start_worker(vec![pair.tx_addr(), worker.internal_addr().clone()], worker)
+            .await?;
+
+        Ok(true)
     }
 }

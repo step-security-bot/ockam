@@ -5,14 +5,13 @@
 //! Ockam library.
 //!
 //! The main Ockam crate re-exports types defined in this crate.
-#![deny(
+#![deny(unsafe_code)]
+#![warn(
     missing_docs,
     trivial_casts,
     trivial_numeric_casts,
-    unsafe_code,
     unused_import_braces,
-    unused_qualifications,
-    warnings
+    unused_qualifications
 )]
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -26,79 +25,84 @@ extern crate core;
 #[macro_use]
 extern crate alloc;
 
+// Allow use of logging macros directly.
+#[macro_use]
+extern crate tracing;
+
 pub use async_trait::async_trait;
 
-pub extern crate hashbrown;
-
 #[allow(unused_imports)]
 #[macro_use]
-pub extern crate hex;
-
-#[allow(unused_imports)]
-#[macro_use]
+/// Re-export of the `async_trait` macro crate.
 pub extern crate async_trait;
+
+/// Mark an Ockam Worker implementation.
+#[doc(inline)]
 pub use async_trait::async_trait as worker;
+/// Mark an Ockam Processor implementation.
+#[doc(inline)]
+pub use async_trait::async_trait as processor;
+
+extern crate ockam_macros;
+pub use ockam_macros::{AsyncTryClone, Message};
+
+extern crate futures_util;
+
+/// Access control
+pub mod access_control;
 
 pub mod compat;
 mod error;
 mod message;
 mod processor;
 mod routing;
+mod type_tag;
 mod uint;
+pub mod vault;
 mod worker;
 
+pub use access_control::*;
 pub use error::*;
 pub use message::*;
 pub use processor::*;
 pub use routing::*;
-pub use traits::*;
+pub use type_tag::*;
 pub use uint::*;
 pub use worker::*;
 
-#[cfg(feature = "std")]
-pub use std::println;
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
-/// println macro for no_std
-#[macro_export]
-macro_rules! println {
-    ($($arg:tt)*) => {{
-        // TODO replace with cortex-m-log or defmt
-        #[cfg(target_arch="arm")]
-        cortex_m_semihosting::hprintln!($($arg)*).unwrap();
-        // dummy fallback definition
-        #[cfg(not(target_arch="arm"))]
-        {
-            use ockam_core::compat::io::Write;
-            let mut buffer = [0 as u8; 1];
-            let mut cursor = ockam_core::compat::io::Cursor::new(&mut buffer[..]);
-            match write!(&mut cursor, $($arg)*) {
-                Ok(()) => (),
-                Err(_) => (),
-            }
-        }
+#[doc(hidden)]
+pub use compat::println;
 
-    }};
+#[cfg(feature = "std")]
+#[doc(hidden)]
+pub use std::println;
+
+use crate::compat::boxed::Box;
+
+/// Clone trait for async structs.
+#[async_trait]
+pub trait AsyncTryClone: Sized {
+    /// Try cloning a object and return an `Err` in case of failure.
+    async fn async_try_clone(&self) -> Result<Self>;
 }
 
-/// Module for custom implementation of standard traits.
-pub mod traits {
-    use crate::compat::boxed::Box;
-    use crate::error::Result;
-
-    /// Clone trait for async structs.
-    #[async_trait]
-    pub trait AsyncTryClone: Sized {
-        /// Try cloning a object and return an `Err` in case of failure.
-        async fn async_try_clone(&self) -> Result<Self>;
+#[async_trait]
+impl<D> AsyncTryClone for D
+where
+    D: Clone + Sync,
+{
+    async fn async_try_clone(&self) -> Result<Self> {
+        Ok(self.clone())
     }
+}
 
-    #[async_trait]
-    impl<D> AsyncTryClone for D
-    where
-        D: Clone + Sync,
-    {
-        async fn async_try_clone(&self) -> Result<Self> {
-            Ok(self.clone())
-        }
-    }
+/// Produces Ok(false) to avoid an ambiguous reading from using the unadorned value in auth code.
+pub fn deny() -> Result<bool> {
+    Ok(false)
+}
+
+/// Produces Ok(true) to avoid an ambiguous reading from using the unadorned value in auth code.
+pub fn allow() -> Result<bool> {
+    Ok(true)
 }

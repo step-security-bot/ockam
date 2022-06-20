@@ -1,0 +1,5 @@
+error: the `Context` argument must be mutable
+ --> tests/node_test/fail_with_borrowed_context.rs:2:18
+  |
+2 | async fn my_test(ctx: &Context) -> ockam_core::Result<()> {
+  |                  ^^^^^^^^^^^^^

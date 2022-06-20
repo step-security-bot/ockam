@@ -1,0 +1,48 @@
+[package]
+name = "ockam_macros"
+version = "0.16.0"
+edition = "2021"
+license = "Apache-2.0"
+authors = ["Ockam Developers"]
+categories = [
+    "cryptography",
+    "asynchronous",
+    "authentication",
+    "network-programming",
+    "embedded",
+]
+description = "End-to-end encryption and mutual authentication for distributed applications."
+homepage = "https://github.com/build-trust/ockam"
+keywords = [
+    "ockam",
+    "crypto",
+    "cryptography",
+    "network-programming",
+    "encryption",
+]
+readme = "README.md"
+repository = "https://github.com/build-trust/ockam/tree/develop/implementations/rust/ockam/ockam_macros"
+publish = true
+rust-version = "1.56.0"
+
+[lib]
+proc-macro = true
+
+[features]
+default = []
+
+# Feature (enabled by default): "std" enables functionality expected to
+# be available on a standard platform.
+std = ["alloc"]
+
+# Feature: "alloc" enables support for heap allocation (implied by `feature = "std"`)
+alloc = []
+
+# Feature: "no_std" enables functionality required for platforms
+# without the standard library, requires nightly.
+no_std = []
+
+[dependencies]
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "1.0", features = ["full"] }

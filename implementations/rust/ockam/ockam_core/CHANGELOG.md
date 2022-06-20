@@ -1,9 +1,198 @@
 # Changelog
+All notable changes to this project will be documented in this file.
 
-All notable changes to this crate will be documented in this file.
-
-The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## unreleased
+
+### Changed
+
+- Implement initial access control prototype
+- Refinements to initial access control prototype
+
+## 0.55.0 - 2022-06-06
+
+### Added
+
+- Add ockam_api_nodes
+- Add simple `Vault` service
+
+### Changed
+
+- Switch `Vault` to `String` `KeyId` instead of integer `Secret`
+- Implement new `Vault` serialization
+- Move `TypeTag` to `ockam_core`
+- Partially add cbor support to `ockam_core/vault`
+- Updated dependencies
+
+### Removed
+
+- Remove `AsRef` from `PublicKey` to avoid confusion
+
+## 0.54.0 - 2022-05-09
+
+### Changed
+
+- Rename github organization to build-trust
+- Updated dependencies
+
+## 0.53.0 - 2022-04-25
+
+### Changed
+
+- Updated dependencies
+
+## 0.52.0 - 2022-04-19
+
+### Changed
+
+- Introduce error type
+- Build error mapping for various crates
+- Clean up ockam_core import paths
+- Update broken tests
+- Move allow and deny utils to ockam_core root
+- Rename error2 to error
+- Updated dependencies
+
+### Fixed
+
+- Update `compat::sync::Mutex` to return `Result` instead of `Option`
+- Fix error module lints
+- Errors: fix ockam_core
+- Errors: fix ockam_vault
+- Errors: fix ockam
+- Fix various clippy and rustfmt lints
+
+### Removed
+
+- Remove ockam_node errors and add new util module
+- Remove traits module from ockam_core
+- Remove thiserror as it does not support no_std
+
+## 0.51.0 - 2022-04-11
+
+### Changed
+
+- Get rid of common `RouterMessage` in favor of transport-specific structs (ble, ws)
+- Make `ockam_core::Error` derive `Eq` and `PartialEq`
+- Don't re-export `hex` or `hashbrown` from `ockam_core`
+- Tune up some of the documentation
+- Ensure more documentation ends up in the right place
+- Implement miniature `ockam` command for demo
+- Vault updates
+- Updated dependencies
+
+### Fixed
+
+- Insert a temporary mechanism to improve error messages
+- Fix clippy warnings
+
+## 0.50.0 - 2022-03-28
+
+### Added
+
+- Add examples for all public functions in `ockam_core`
+- Add tests for `ockam_core`
+
+### Changed
+
+- Edit `ockam_core` documentation for typos, clarity and consistency
+- Move `traits` module into its own file
+- Move `ockam_core::println_no_std` to `ockam_core::compat::println`
+- Friendlify api for `ockam_core::access_control`
+- Friendlify api for `ockam_core::routing::address`
+- Friendlify api for `ockam_core::vault::key_id_vault`
+- `TODO` return `Result<&Address>` from `ockam_core::Route.recipient()`
+- Implement basic sender resend handler
+- Various clippy fixes
+- Updated dependencies
+
+### Removed
+
+- Remove unused type `ockam_core::ResultMessage`
+
+## 0.47.0 - 2022-02-22
+
+### Added
+
+- Add `From<(u8, String>)` implementation for `Address`
+
+## 0.46.0 - 2022-02-08
+
+### Changed
+
+- Update crate edition to 2021
+
+## 0.43.0 - 2022-01-10
+
+### Added
+
+- Add no_main arg support to ockam::node macro
+
+### Changed
+
+- Improve formatting of `Cargo.toml`s  and add `rust-version` 1.56.0
+- Use the tracing crate for logging on no_std
+
+## 0.42.0 - 2021-12-13
+
+### Added
+
+- Add access control
+- Add ockam_core/bls feature and small fixes
+
+### Changed
+
+- Update `LocalInfo` logic
+- Initial ockam channel implementation
+- Simplify channel creation handshake
+- Move ockam_vault_core crate into ockam_core
+
+## 0.41.0 - 2021-12-06
+
+### Added
+
+- Add `take_payload` to `Routed`
+
+### Changed
+
+- Merge macro crates
+
+### Removed
+
+- Remove symlinks to `DEVELOP.md` and `LICENSE`
+- Remove need for separate macro crates
+
+## v0.40.0 - 2021-11-22
+
+
+### Added
+
+- Add route prepend mechanism and test
+
+### Changed
+
+- Deny warnings in ci, not local development
+
+
+## v0.39.0 - 2021-11-15
+### Changed
+- fix `no_std` breakage
+- Dependencies updated
+
+## v0.38.0 - 2021-11-08
+### Added
+- add proc macro to auto derive `AsyncTryClone` trait
+### Changed
+- replace `AsyncTryClone` trait impls with `#[derive(AsyncTryClone)]` wherever applicable
+- replaced tokio::try_join with futures_util::try_join
+- Dependencies updated
+
+## v0.37.0 - 2021-11-01
+### Changed
+- Explicitly derive Message trait
+- Dependencies updated
 
 ## v0.36.0 - 2021-10-25
 ### Added

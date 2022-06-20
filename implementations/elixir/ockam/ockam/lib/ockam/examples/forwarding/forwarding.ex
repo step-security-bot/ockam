@@ -1,6 +1,6 @@
 defmodule Ockam.Examples.Forwarding do
   @moduledoc """
-  Example using forwarding service on Ockam Hub
+  Example using forwarding service on Ockam Services
 
   Uasge:
 
@@ -16,7 +16,7 @@ defmodule Ockam.Examples.Forwarding do
 
   require Logger
 
-  @hub_address Ockam.Transport.TCPAddress.new("1.node.ockam.network", 4000)
+  @remote_address Ockam.Transport.TCPAddress.new("1.node.ockam.network", 4000)
 
   def same_node() do
     with {:ok, forwarder_address} <- start_responder() do
@@ -42,9 +42,9 @@ defmodule Ockam.Examples.Forwarding do
 
   def responder(notify \\ nil) do
     TCP.start()
-    forwarding_route = [@hub_address, "forwarding_service"]
+    forwarding_route = [@remote_address, "forwarding"]
 
-    Ockam.Node.register_address("example_responder", self())
+    Ockam.Node.register_address("example_responder")
 
     with {:ok, forwarder_address} <-
            ServiceApi.register_self(forwarding_route, "example_responder") do
@@ -61,9 +61,9 @@ defmodule Ockam.Examples.Forwarding do
 
   def initiator(forwarder_address) do
     TCP.start()
-    forwarder_route = [@hub_address, forwarder_address]
+    forwarder_route = [@remote_address, forwarder_address]
 
-    Ockam.Node.register_address("example_initiator", self())
+    Ockam.Node.register_address("example_initiator")
 
     Ockam.Router.route(%{
       onward_route: forwarder_route,

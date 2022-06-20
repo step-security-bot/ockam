@@ -1,96 +1,115 @@
-use crate::{SoftwareVault, VaultError};
+use crate::{Vault, VaultError};
 use aes_gcm::aead::{generic_array::GenericArray, Aead, NewAead, Payload};
 use aes_gcm::{Aes128Gcm, Aes256Gcm};
-use ockam_core::Result;
-use ockam_core::{async_trait, compat::boxed::Box};
-use ockam_vault_core::{
-    Buffer, Secret, SecretType, SymmetricVault, AES128_SECRET_LENGTH, AES256_SECRET_LENGTH,
+use ockam_core::vault::{
+    Buffer, KeyId, SecretType, SymmetricVault, AES128_SECRET_LENGTH, AES256_SECRET_LENGTH,
 };
-
-macro_rules! encrypt_op_impl {
-    ($a:expr,$aad:expr,$nonce:expr,$text:expr,$type:ident,$op:ident) => {{
-        let key = GenericArray::from_slice($a.as_ref());
-        let cipher = $type::new(key);
-        let nonce = GenericArray::from_slice($nonce.as_ref());
-        let payload = Payload {
-            aad: $aad.as_ref(),
-            msg: $text.as_ref(),
-        };
-        let output = cipher.$op(nonce, payload).or_else(|_| {
-            Err(Into::<ockam_core::Error>::into(
-                VaultError::AeadAesGcmEncrypt,
-            ))
-        })?;
-        Ok(output)
-    }};
-}
-
-macro_rules! encrypt_impl {
-    ($entry:expr, $aad:expr, $nonce: expr, $text:expr, $op:ident, $err:expr) => {{
-        if $entry.key_attributes().stype() != SecretType::Aes {
-            return Err($err.into());
-        }
-        match $entry.key_attributes().length() {
-            AES128_SECRET_LENGTH => {
-                encrypt_op_impl!($entry.key().as_ref(), $aad, $nonce, $text, Aes128Gcm, $op)
-            }
-            AES256_SECRET_LENGTH => {
-                encrypt_op_impl!($entry.key().as_ref(), $aad, $nonce, $text, Aes256Gcm, $op)
-            }
-            _ => Err($err.into()),
-        }
-    }};
-}
+use ockam_core::{async_trait, compat::boxed::Box, Result};
 
 #[async_trait]
-impl SymmetricVault for SoftwareVault {
+impl SymmetricVault for Vault {
     async fn aead_aes_gcm_encrypt(
-        &mut self,
-        context: &Secret,
+        &self,
+        key_id: &KeyId,
         plaintext: &[u8],
         nonce: &[u8],
         aad: &[u8],
     ) -> Result<Buffer<u8>> {
-        let entry = self.get_entry(context)?;
+        self.preload_from_storage(key_id).await;
 
-        encrypt_impl!(
-            entry,
+        let entries = self.data.entries.read().await;
+        let entry = entries.get(key_id).ok_or(VaultError::EntryNotFound)?;
+
+        if entry.key_attributes().stype() != SecretType::Aes {
+            return Err(VaultError::AeadAesGcmEncrypt.into());
+        }
+
+        let nonce = GenericArray::from_slice(nonce);
+        let payload = Payload {
             aad,
-            nonce,
-            plaintext,
-            encrypt,
-            VaultError::AeadAesGcmEncrypt
-        )
+            msg: plaintext,
+        };
+
+        let key = entry.key().as_ref();
+        match entry.key_attributes().length() {
+            AES128_SECRET_LENGTH => {
+                if key.len() != AES128_SECRET_LENGTH {
+                    return Err(VaultError::AeadAesGcmEncrypt.into());
+                }
+
+                let key = GenericArray::from_slice(key);
+                Aes128Gcm::new(key)
+                    .encrypt(nonce, payload)
+                    .map_err(|_| VaultError::AeadAesGcmEncrypt.into())
+            }
+            AES256_SECRET_LENGTH => {
+                if key.len() != AES256_SECRET_LENGTH {
+                    return Err(VaultError::AeadAesGcmEncrypt.into());
+                }
+
+                let key = GenericArray::from_slice(key);
+                Aes256Gcm::new(key)
+                    .encrypt(nonce, payload)
+                    .map_err(|_| VaultError::AeadAesGcmEncrypt.into())
+            }
+            _ => Err(VaultError::AeadAesGcmEncrypt.into()),
+        }
     }
 
     async fn aead_aes_gcm_decrypt(
-        &mut self,
-        context: &Secret,
+        &self,
+        key_id: &KeyId,
         cipher_text: &[u8],
         nonce: &[u8],
         aad: &[u8],
     ) -> Result<Buffer<u8>> {
-        let entry = self.get_entry(context)?;
+        self.preload_from_storage(key_id).await;
 
-        encrypt_impl!(
-            entry,
+        let entries = self.data.entries.read().await;
+        let entry = entries.get(key_id).ok_or(VaultError::EntryNotFound)?;
+
+        if entry.key_attributes().stype() != SecretType::Aes {
+            return Err(VaultError::AeadAesGcmEncrypt.into());
+        }
+
+        let nonce = GenericArray::from_slice(nonce);
+        let payload = Payload {
             aad,
-            nonce,
-            cipher_text,
-            decrypt,
-            VaultError::AeadAesGcmDecrypt
-        )
+            msg: cipher_text,
+        };
+
+        let key = entry.key().as_ref();
+        match entry.key_attributes().length() {
+            AES128_SECRET_LENGTH => {
+                if key.len() != AES128_SECRET_LENGTH {
+                    return Err(VaultError::AeadAesGcmEncrypt.into());
+                }
+                let key = GenericArray::from_slice(key);
+                Aes128Gcm::new(key)
+                    .decrypt(nonce, payload)
+                    .map_err(|_| VaultError::AeadAesGcmEncrypt.into())
+            }
+            AES256_SECRET_LENGTH => {
+                if key.len() != AES256_SECRET_LENGTH {
+                    return Err(VaultError::AeadAesGcmEncrypt.into());
+                }
+                let key = GenericArray::from_slice(key);
+                Aes256Gcm::new(key)
+                    .decrypt(nonce, payload)
+                    .map_err(|_| VaultError::AeadAesGcmEncrypt.into())
+            }
+            _ => Err(VaultError::AeadAesGcmEncrypt.into()),
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::SoftwareVault;
-    use ockam_vault_test_attribute::*;
-    fn new_vault() -> SoftwareVault {
-        SoftwareVault::default()
+    use crate::Vault;
+    fn new_vault() -> Vault {
+        Vault::default()
     }
 
-    #[vault_test]
+    #[ockam_macros::vault_test]
     fn encryption() {}
 }

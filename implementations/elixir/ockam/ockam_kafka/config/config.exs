@@ -5,3 +5,6 @@ import Config
 
 config :ockam_kafka,
   endpoints: [{"localhost", 9092}]
+
+config :ockam_services,
+  service_providers: [Ockam.Services.Kafka.Provider]

@@ -5,14 +5,13 @@
 //! Ockam library.
 //!
 //! The main Ockam crate re-exports types defined in this crate.
-#![deny(
+#![deny(unsafe_code)]
+#![warn(
     missing_docs,
     trivial_casts,
     trivial_numeric_casts,
-    unsafe_code,
     unused_import_braces,
-    unused_qualifications,
-    warnings
+    unused_qualifications
 )]
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -23,9 +22,7 @@ extern crate core;
 extern crate alloc;
 
 use ockam_core::compat::{string::String, vec::Vec};
-use ockam_core::Result;
-use ockam_core::{async_trait, compat::boxed::Box};
-use ockam_vault_core::Secret;
+use ockam_core::{async_trait, compat::boxed::Box, vault::KeyId, Result};
 use zeroize::Zeroize;
 
 /// A trait implemented by both Initiator and Responder peers.
@@ -62,8 +59,8 @@ pub trait NewKeyExchanger {
 #[zeroize(drop)]
 pub struct CompletedKeyExchange {
     h: [u8; 32],
-    encrypt_key: Secret,
-    decrypt_key: Secret,
+    encrypt_key: KeyId,
+    decrypt_key: KeyId,
 }
 
 impl CompletedKeyExchange {
@@ -72,18 +69,18 @@ impl CompletedKeyExchange {
         &self.h
     }
     /// The derived encryption key.
-    pub fn encrypt_key(&self) -> &Secret {
+    pub fn encrypt_key(&self) -> &KeyId {
         &self.encrypt_key
     }
     /// The derived decryption key.
-    pub fn decrypt_key(&self) -> &Secret {
+    pub fn decrypt_key(&self) -> &KeyId {
         &self.decrypt_key
     }
 }
 
 impl CompletedKeyExchange {
     /// Build a CompletedKeyExchange comprised of the input parameters.
-    pub fn new(h: [u8; 32], encrypt_key: Secret, decrypt_key: Secret) -> Self {
+    pub fn new(h: [u8; 32], encrypt_key: KeyId, decrypt_key: KeyId) -> Self {
         CompletedKeyExchange {
             h,
             encrypt_key,

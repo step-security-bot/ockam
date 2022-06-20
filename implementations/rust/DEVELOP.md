@@ -9,7 +9,7 @@ To start contributing to our rust code, clone the Ockam repo from Github and
 change your current directory to `ockam/implementations/rust`:
 
 ```
-git clone git@github.com:ockam-network/ockam.git
+git clone git@github.com:build-trust/ockam.git
 cd ockam/implementations/rust
 ```
 
@@ -83,7 +83,7 @@ Get a code coverage report:
 ```
 cargo +nightly install grcov
 
-env CARGO_INCREMENTAL=0 RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort" RUSTDOCFLAGS="-Cpanic=abort" cargo +nightly test
+env CARGO_INCREMENTAL=0 RUSTFLAGS="-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort --cfg tokio_unstable" RUSTDOCFLAGS="-Cpanic=abort" cargo +nightly test
 
 grcov --llvm . -s . --binary-path ./target/debug/ -t html --branch --ignore-not-existing -o ./target/debug/coverage/
 
@@ -127,7 +127,7 @@ cargo license --json | jq ".[] | .license" | sort | uniq
 
 ## Get Help
 
-Ask a question on [Github Discussions](https://github.com/ockam-network/ockam/discussions)
+Ask a question on [Github Discussions](https://github.com/build-trust/ockam/discussions)
 
 
 

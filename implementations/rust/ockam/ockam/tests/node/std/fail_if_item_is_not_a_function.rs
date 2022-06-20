@@ -1,0 +1,2 @@
+#[ockam::node]
+struct A {}

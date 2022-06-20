@@ -1,18 +1,17 @@
-use crate::software_vault::SoftwareVault;
+use crate::vault::Vault;
 use crate::VaultError;
 use arrayref::array_ref;
 use ockam_core::compat::vec::Vec;
-use ockam_core::Result;
-use ockam_core::{async_trait, compat::boxed::Box};
-use ockam_vault_core::{
-    Hasher, Secret, SecretAttributes, SecretType, SecretVault, AES128_SECRET_LENGTH,
+use ockam_core::vault::{
+    Hasher, KeyId, SecretAttributes, SecretType, SecretVault, AES128_SECRET_LENGTH,
     AES256_SECRET_LENGTH,
 };
+use ockam_core::{async_trait, compat::boxed::Box, Result};
 use sha2::{Digest, Sha256};
 
 #[async_trait]
-impl Hasher for SoftwareVault {
-    async fn sha256(&mut self, data: &[u8]) -> Result<[u8; 32]> {
+impl Hasher for Vault {
+    async fn sha256(&self, data: &[u8]) -> Result<[u8; 32]> {
         let digest = Sha256::digest(data);
         Ok(*array_ref![digest, 0, 32])
     }
@@ -21,15 +20,22 @@ impl Hasher for SoftwareVault {
     /// Salt and Ikm should be of Buffer type.
     /// Output secrets should be only of type Buffer or AES
     async fn hkdf_sha256(
-        &mut self,
-        salt: &Secret,
+        &self,
+        salt: &KeyId,
         info: &[u8],
-        ikm: Option<&Secret>,
+        ikm: Option<&KeyId>,
         output_attributes: Vec<SecretAttributes>,
-    ) -> Result<Vec<Secret>> {
+    ) -> Result<Vec<KeyId>> {
+        self.preload_from_storage(salt).await;
+        if let Some(ikm) = ikm {
+            self.preload_from_storage(ikm).await;
+        }
+
+        let entries = self.data.entries.read().await;
+
         let ikm: Result<&[u8]> = match ikm {
             Some(ikm) => {
-                let ikm = self.get_entry(ikm)?;
+                let ikm = entries.get(ikm).ok_or(VaultError::EntryNotFound)?;
                 if ikm.key_attributes().stype() == SecretType::Buffer {
                     Ok(ikm.key().as_ref())
                 } else {
@@ -41,7 +47,7 @@ impl Hasher for SoftwareVault {
 
         let ikm = ikm?;
 
-        let salt = self.get_entry(salt)?;
+        let salt = entries.get(salt).ok_or(VaultError::EntryNotFound)?;
 
         if salt.key_attributes().stype() != SecretType::Buffer {
             return Err(VaultError::InvalidKeyType.into());
@@ -59,7 +65,10 @@ impl Hasher for SoftwareVault {
             okm
         };
 
-        let mut secrets = Vec::<Secret>::new();
+        // Prevent dead-lock by freeing entries lock, since we don't need it
+        drop(entries);
+
+        let mut secrets = Vec::<KeyId>::new();
         let mut index = 0;
 
         for attributes in output_attributes {
@@ -84,16 +93,15 @@ impl Hasher for SoftwareVault {
 
 #[cfg(test)]
 mod tests {
-    use crate::SoftwareVault;
-    use ockam_vault_test_attribute::*;
+    use crate::Vault;
 
-    fn new_vault() -> SoftwareVault {
-        SoftwareVault::default()
+    fn new_vault() -> Vault {
+        Vault::default()
     }
 
-    #[vault_test]
+    #[ockam_macros::vault_test]
     fn sha256() {}
 
-    #[vault_test]
+    #[ockam_macros::vault_test]
     fn hkdf() {}
 }

@@ -11,8 +11,6 @@ defmodule Ockam.Transport.UDP.Listener do
 
   require Logger
 
-  @wire_encoder_decoder Ockam.Wire.Binary.V2
-
   def start_link(options) do
     GenServer.start_link(__MODULE__, options)
   end
@@ -53,15 +51,13 @@ defmodule Ockam.Transport.UDP.Listener do
 
   defp setup_routed_message_handler(listener) do
     handler = fn message ->
-      handle_routed_message(listener, message)
+      handle_transport_message(listener, message)
     end
 
-    with :ok <- Router.set_message_handler(UDPAddress.type(), handler) do
-      :ok
-    end
+    Router.set_message_handler(UDPAddress.type(), handler)
   end
 
-  defp handle_routed_message(listener, message) do
+  defp handle_transport_message(listener, message) do
     send_message(listener, message)
   end
 
@@ -93,8 +89,8 @@ defmodule Ockam.Transport.UDP.Listener do
     {function_name, _} = __ENV__.function
     {:udp, _socket, from_ip, from_port, packet} = udp_message
 
-    with {:ok, decoded} <- Wire.decode(@wire_encoder_decoder, packet),
-         {:ok, message} <- set_return_route(decoded, UDPAddress.new(from_ip, from_port)),
+    with {:ok, decoded} <- Wire.decode(packet),
+         message <- Message.trace(decoded, UDPAddress.new(from_ip, from_port)),
          :ok <- Router.route(message) do
       Telemetry.emit_event(function_name, metadata: %{name: "successfully_decoded"})
       {:ok, state}
@@ -104,11 +100,10 @@ defmodule Ockam.Transport.UDP.Listener do
   end
 
   defp encode_and_send_over_udp(message, %{socket: socket} = state) do
-    message = create_outgoing_message(message)
     {function_name, _} = __ENV__.function
 
     with {:ok, destination, message} <- pick_destination_and_set_onward_route(message),
-         {:ok, encoded_message} <- Wire.encode(@wire_encoder_decoder, message),
+         {:ok, encoded_message} <- Wire.encode(message),
          :ok <- :gen_udp.send(socket, destination.ip, destination.port, encoded_message) do
       Telemetry.emit_event(function_name, metadata: %{name: "successfully_encoded_and_sent"})
       {:ok, state}
@@ -116,14 +111,6 @@ defmodule Ockam.Transport.UDP.Listener do
       {:error, reason} ->
         {:error, Telemetry.emit_event(function_name, metadata: %{name: reason})}
     end
-  end
-
-  defp create_outgoing_message(message) do
-    %{
-      onward_route: Message.onward_route(message),
-      return_route: Message.return_route(message),
-      payload: Message.payload(message)
-    }
   end
 
   defp pick_destination_and_set_onward_route(message) do
@@ -142,10 +129,6 @@ defmodule Ockam.Transport.UDP.Listener do
       error ->
         error
     end
-  end
-
-  defp set_return_route(%{return_route: return_route} = message, address) do
-    {:ok, %{message | return_route: [address | return_route]}}
   end
 
   defp default_ip do

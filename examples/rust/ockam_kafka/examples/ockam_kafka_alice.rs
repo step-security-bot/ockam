@@ -1,5 +1,11 @@
-use ockam::{route, Context, Entity, Result, TrustEveryonePolicy, Vault};
-use ockam::{stream::Stream, TcpTransport, Unique, TCP};
+use ockam::{
+    identity::{Identity, TrustEveryonePolicy},
+    route,
+    stream::Stream,
+    unique_with_prefix,
+    vault::Vault,
+    Context, Result, TcpTransport, TCP,
+};
 use std::io;
 
 #[ockam::node]
@@ -8,10 +14,10 @@ async fn main(mut ctx: Context) -> Result<()> {
     TcpTransport::create(&ctx).await?;
 
     // Create a Vault to safely store secret keys for Alice.
-    let vault = Vault::create(&ctx).await?;
+    let vault = Vault::create();
 
-    // Create an Entity to represent Alice.
-    let mut alice = Entity::create(&ctx, &vault).await?;
+    // Create an Identity to represent Alice.
+    let alice = Identity::create(&ctx, &vault).await?;
 
     // This program expects that Bob has created two streams
     // bob_to_alice and alice_to_bob on the cloud node at 1.node.ockam.network:4000
@@ -41,7 +47,7 @@ async fn main(mut ctx: Context) -> Result<()> {
         .await?
         .stream_service("stream_kafka")
         .index_service("stream_kafka_index")
-        .client_id(Unique::with_prefix("alice"))
+        .client_id(unique_with_prefix("alice"))
         .connect(route![node_in_hub], a_to_b_stream_address, b_to_a_stream_address)
         .await?;
 

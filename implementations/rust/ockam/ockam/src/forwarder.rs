@@ -5,8 +5,9 @@ use tracing::info;
 
 /// Alias worker to register remote workers under local names.
 ///
-/// To talk with this worker, you can use the [`RemoteForwarder`](crate::RemoteForwarder)
-/// which is a compatible client for this server.
+/// To talk with this worker, you can use the
+/// [`RemoteForwarder`](crate::remote::RemoteForwarder) which is a
+/// compatible client for this server.
 #[non_exhaustive]
 pub struct ForwardingService;
 
@@ -52,7 +53,7 @@ impl Forwarder {
         registration_payload: Vec<u8>,
     ) -> Result<()> {
         info!("Created new alias for {}", forward_route);
-        let address = Address::random(0);
+        let address = Address::random_local();
         let forwarder = Self {
             forward_route,
             payload: Some(registration_payload),

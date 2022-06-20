@@ -1,7 +1,6 @@
 use crate::{SecretKeyShare, Signature};
 use bls12_381_plus::{G1Affine, G1Projective, Scalar};
 use core::{
-    convert::TryFrom,
     fmt::{self, Display},
     ops::{BitOr, Not},
 };
@@ -11,14 +10,8 @@ use subtle::Choice;
 use vsss_rs::Share;
 
 /// Represents a BLS partial signature in G1 using the proof of possession scheme
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, Default)]
 pub struct PartialSignature(pub(crate) Share<PARTIAL_SIGNATURE_BYTES>);
-
-impl Default for PartialSignature {
-    fn default() -> Self {
-        Self(Share::default())
-    }
-}
 
 impl Display for PartialSignature {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

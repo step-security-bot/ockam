@@ -1,0 +1,10 @@
+use crate::vault::{KeyId, Signature};
+use crate::Result;
+use crate::{async_trait, compat::boxed::Box};
+
+/// Defines the Vault interface for Signing.
+#[async_trait]
+pub trait Signer {
+    /// Generate a `Signature` for the given data using the given `Secret` key.
+    async fn sign(&self, key_id: &KeyId, data: &[u8]) -> Result<Signature>;
+}

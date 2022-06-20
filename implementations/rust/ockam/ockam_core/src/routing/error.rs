@@ -1,24 +1,30 @@
-use crate::Error;
+use crate::{
+    errcode::{Kind, Origin},
+    Error,
+};
 
-/// A routing specific error type
+/// A routing specific error type.
 #[derive(Clone, Copy, Debug)]
 pub enum RouteError {
     /// Message had an incomplete route
     IncompleteRoute,
 }
 
-impl RouteError {
-    /// Route error specific domain code
-    pub const DOMAIN_CODE: u32 = 19_000;
-    /// Route error specific domain name
-    pub const DOMAIN_NAME: &'static str = "OCKAM_ROUTE";
+impl From<RouteError> for Error {
+    #[track_caller]
+    fn from(err: RouteError) -> Self {
+        let kind = match err {
+            RouteError::IncompleteRoute => Kind::Misuse,
+        };
+        Error::new(Origin::Core, kind, err)
+    }
 }
 
-impl From<RouteError> for Error {
-    fn from(e: RouteError) -> Error {
-        Error::new(
-            RouteError::DOMAIN_CODE + (e as u32),
-            RouteError::DOMAIN_NAME,
-        )
+impl crate::compat::error::Error for RouteError {}
+impl core::fmt::Display for RouteError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            RouteError::IncompleteRoute => "incomplete route".fmt(f),
+        }
     }
 }

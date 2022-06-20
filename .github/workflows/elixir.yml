@@ -1,0 +1,203 @@
+name: Elixir
+
+permissions:
+  contents: read
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/elixir.yml'
+      - '**.ex'
+      - '**.exs'
+      - '**/mix.lock'
+      - '**/priv/**'
+      - '**/native/**'
+      - '**.rs'
+      - '**.toml'
+      - '**/Cargo.lock'
+      - '**.gradle'
+      - 'tools/gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/actions/**'
+  push:
+    paths:
+      - '.github/workflows/elixir.yml'
+      - '**.ex'
+      - '**.exs'
+      - '**/mix.lock'
+      - '**/priv/**'
+      - '**/native/**'
+      - '**.rs'
+      - '**.toml'
+      - '**/Cargo.lock'
+      - '**.gradle'
+      - 'tools/gradle/**'
+      - 'gradlew'
+      - 'gradlew.bat'
+      - '.github/actions/**'
+  schedule:
+    - cron: '0 1 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint_ockam_vault_software:
+    name: Elixir - lint_ockam_vault_software
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew lint_ockam_vault_software
+
+  lint_ockam:
+    name: Elixir - lint_ockam
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew lint_ockam
+
+  lint_ockam_kafka:
+    name: Elixir - lint_ockam_kafka
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew lint_ockam_kafka
+
+  lint_ockam_services:
+    name: Elixir - lint_ockam_services
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew lint_ockam_services
+
+  lint_ockam_cloud_node:
+    name: Elixir - lint_ockam_cloud_node
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew lint_ockam_cloud_node
+
+  build_ockam_vault_software:
+    name: Elixir - build_ockam_vault_software
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew build_ockam_vault_software
+
+  build_ockam:
+    name: Elixir - build_ockam
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew build_ockam
+
+  build_ockam_kafka:
+    name: Elixir - build_ockam_kafka
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew build_ockam_kafka
+
+  build_ockam_services:
+    name: Elixir - build_ockam_services
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew build_ockam_services
+
+  build_ockam_cloud_node:
+    name: Elixir - build_ockam_cloud_node
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew build_ockam_cloud_node
+
+  test_ockam_vault_software:
+    name: Elixir - test_ockam_vault_software
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/cargo_home_cache
+      - uses: ./.github/actions/cargo_target_dir_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew test_ockam_vault_software
+      - uses: ./.github/actions/cargo_target_dir_pre_cache
+
+  test_ockam:
+    name: Elixir - test_ockam
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew test_ockam
+
+  test_ockam_kafka:
+    name: Elixir - test_ockam_kafka
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew test_ockam_kafka
+
+  test_ockam_services:
+    name: Elixir - test_ockam_services
+    runs-on: ubuntu-20.04
+    container:
+      image: ghcr.io/build-trust/ockam-builder@sha256:2d776ca29c80d080433ee255668b7897b8efd3a0773b80674cb345bda6d6b67e
+    steps:
+      - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
+      - uses: ./.github/actions/gradle_cache
+      - uses: ./.github/actions/elixir_cache
+      - run: cd implementations/elixir && ../../gradlew test_ockam_services
