@@ -159,6 +159,11 @@ jobs:
       - name: Ensure Tags Are Signed
         run: git config --global commit.gpgsign true
 
+      - name: Create Signed Tag
+        run: |
+          git tag -s ${{ steps.release_version.outputs.tag_name }}
+          git push --tags
+
       - name: Create GitHub release
         id: release_upload_url
         uses: actions/create-release@4c11c9fe1dcd9636620a16455165783b20fc7ea0
