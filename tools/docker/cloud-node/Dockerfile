@@ -6,7 +6,7 @@ WORKDIR /tmp
 RUN set -xe; \
     apt-get update; \
     apt-get install --assume-yes apt-rdepends; \
-    apt-get download $(apt-rdepends libc-bin libncurses-dev|grep -v "^ "| grep -v "^libc-dev$" | grep -v "^debconf-2.0$"); \
+    apt-get download libpcre3 $(apt-rdepends libc-bin libncurses-dev|grep -v "^ "| grep -v "^libc-dev$" | grep -v "^debconf-2.0$"); \
     mkdir -p /dpkg/var/lib/dpkg/status.d/ && \
     for deb in *.deb; do \
         package_name=$(dpkg-deb -I ${deb} | awk '/^ Package: .*$/ {print $2}'); \
@@ -21,7 +21,7 @@ RUN find /dpkg/ -type d -empty -delete && \
 
 
 # Stage 2 - Build elixir release of ockam_cloud_node elixir app
-FROM ghcr.io/build-trust/ockam-builder@sha256:84bda332c6f87eecaf5418f403053cb868eb007d7931de557f1f692a8a95cc8b as elixir-app-release-build
+FROM ghcr.io/build-trust/ockam-builder@sha256:d560cb1ed32124e68cb4dc5fc2902240090f122864715756ace06e99e38e6cb2 as elixir-app-release-build
 COPY . /work
 RUN set -xe; \
     cd implementations/elixir; \
@@ -38,10 +38,6 @@ COPY --from=elixir-app-release-build /work/implementations/elixir/ockam/ockam_cl
 # Copy the libraries from the extractor stage into root
 COPY --from=debian-packages /dpkg /
 
-# We copy all shared libraries needed for elixir VM to function.
-COPY --from=debian-packages /lib/x86_64-linux-gnu /lib
-COPY --from=debian-packages /usr/lib/x86_64-linux-gnu/libpcre2-8.so.0 /lib
-COPY --from=debian-packages /usr/lib/x86_64-linux-gnu/libacl.so.1 /lib
 # We copy all programs needed for elixir VM to function.
 COPY --from=debian-packages /bin/sh /bin/sh
 COPY --from=debian-packages /bin/rm /bin/rm
