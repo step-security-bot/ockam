@@ -5,8 +5,8 @@ FROM debian:11.1-slim@sha256:656b29915fc8a8c6d870a1247aad7796ce296729b0ae95e168d
 WORKDIR /tmp
 RUN set -xe; \
     apt-get update; \
-    apt-get download \
-        libc-bin; \
+    apt-get install --assume-yes apt-rdepends; \
+    apt-get download $(apt-rdepends libc-bin libncurses-dev|grep -v "^ "| grep -v "^libc-dev$" | grep -v "^debconf-2.0$"); \
     mkdir -p /dpkg/var/lib/dpkg/status.d/ && \
     for deb in *.deb; do \
         package_name=$(dpkg-deb -I ${deb} | awk '/^ Package: .*$/ {print $2}'); \
