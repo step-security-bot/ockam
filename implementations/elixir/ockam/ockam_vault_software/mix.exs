@@ -1,18 +1,21 @@
 defmodule Ockam.Vault.Software.MixProject do
   use Mix.Project
 
-  @version "0.62.0"
+  @version "0.63.0"
 
   @elixir_requirement "~> 1.12"
 
-  @ockam_release_url "https://github.com/build-trust/ockam/releases"
+  @ockam_release_url "https://github.com/metaclips/ockam/releases"
   @download_libs [
-    {"ockam.linux_elixir_ffi.so", ["linux_x86_64_gnu", "native", "libockam_elixir_ffi.so"]},
+    {"ockam.linux_x86_64_elixir_ffi.so",
+     ["linux_x86_64_gnu", "native", "libockam_elixir_ffi.so"]},
+    {"ockam.linux_aarch64_elixir_ffi.so",
+     ["linux_aarch64_gnu", "native", "libockam_elixir_ffi.so"]},
     {"ockam.darwin_universal_elixir_ffi.so",
      ["darwin_universal", "native", "libockam_elixir_ffi.so"]}
   ]
 
-  @ockam_github_repo "https://github.com/build-trust/ockam"
+  @ockam_github_repo "https://github.com/metaclips/ockam"
   @ockam_github_repo_path "implementations/elixir/ockam/ockam_vault_software"
 
   def project do
