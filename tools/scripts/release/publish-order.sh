@@ -1,11 +1,10 @@
-#!/usr/bin/env bash
-
 # This script shows release order of our ockam crates. Crates
 # are ordered in less-ockam-interdependent order.
 #
 # There was a bug in cargo-release https://github.com/crate-ci/cargo-release/issues/366
 # which gave wrong ordering but has been fixed, so we can use
 # cargo-release to release.
+set -e -o pipefail
 
 val=$(eval "cargo metadata --no-deps | jq '[.packages[] | {name: .name, version: .version, dependencies: .dependencies}]'");
 length=$(eval "echo '$val' | jq '. | length' ");
@@ -57,7 +56,7 @@ while [[ ! -z ${packages[@]} ]]; do
         # Check all package dependencies if there are any
         # that hasn't been indicated to be uploaded.
         for dep in ${deps[@]}; do
-            if [[ ${sorted_packages_map[$dep]} == false ]]; then
+            if [[ ${sorted_packages_map[$dep]} == false && $dep != $package ]]; then
                 sorted=false
             fi
         done

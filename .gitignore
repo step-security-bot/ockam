@@ -18,3 +18,4 @@ cmake_install.cmake
 target
 vendor
 .cargo
+config.toml
