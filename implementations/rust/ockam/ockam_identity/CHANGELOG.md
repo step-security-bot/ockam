@@ -4,6 +4,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.56.0 - 2022-08-01
+
+### Added
+
+- Add `Identity` service
+- Add chain verififcation where needed
+- Add `#[ockam::node]` macro attribute `access_control`
+- Add `known_identifier` flag to secure channel command
+
+### Changed
+
+- Move ockam_identity service to ockam_api
+- Implement initial access control prototype
+- Refinements to initial access control prototype
+- Create node builder for easier node initialisation
+- Create worker builder for cleaner worker access control initialisation
+- Identity updates
+- `AuthenticatedTable` -> `AuthenticatedStorage`
+- Updates for clippy 0.1.62
+- Updated dependencies
+
+### Removed
+
+- Remove old credentials and signatures code
+
 ## 0.54.0 - 2022-07-18
 
 ### Changed
