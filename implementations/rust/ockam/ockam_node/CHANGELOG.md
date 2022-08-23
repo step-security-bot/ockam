@@ -4,6 +4,55 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.68.0 - 2022-08-23
+
+### Added
+
+- Add an async_drop mechanism for bare context drop
+- Add dedicated channel types for ockam_node, switch back to bounded channels
+- Add timeout function to context that takes duration
+- Add metrics output to trace logs
+- Add `#[ockam::node]` macro attribute `access_control`
+- Add support for panic handling in test macro
+- Add timeout and node exists check to `message send` command
+
+### Changed
+
+- Attempt to cut down memory usage via context drop
+- Rename new_context to new_detached
+- Generate simple csv metrics report
+- Collect router and (ockam) worker metrics
+- Rename context metrics field and add better docs
+- Implement initial access control prototype
+- Refinements to initial access control prototype
+- Move node manager service to ockam_api crate
+- Create node builder for easier node initialisation
+- Disable metrics by default
+- Create worker builder for cleaner worker access control initialisation
+- `Storage` -> `AuthenticatedTable`
+- `AuthenticatedTable` -> `AuthenticatedStorage`
+- Partially implemented node watchdog
+- Implement attribute-based access control for message flow authorization
+- Cleanup ockam test macro
+- Move api structs to `ockam_core`
+- Check identity during credentials exchange
+- Updated dependencies
+
+### Fixed
+
+- Fix address de-allocation issues for bare contexts
+- Clean up router metrics code lints
+- Gate metrics code behind metrics feature
+- Making ockam_node a bit less spammy on debug
+- Use runtime handles
+- Fix mispointed link
+- Check if address already exists before creating workers/processors
+- Fix schema validation
+
+### Removed
+
+- Remove `block_future`
+
 ## 0.67.0 - 2022-08-17
 
 ### Added
