@@ -25,6 +25,7 @@ permissions:
 env:
   DEPLOYMENT_NAME: ockam
   ARTIFACT_NAME: ockam
+  ORGANIZATION: metaclips
 
 jobs:
   build-and-publish-artifact:
@@ -41,7 +42,7 @@ jobs:
         run: |
           set -ex
           mkdir assets && cd assets
-          gh release download ${{ github.event.inputs.tag }} -R build-trust/ockam
+          gh release download ${{ github.event.inputs.tag }} -R ${ORGANIZATION}/ockam
 
       - uses: actions/checkout@5a4ac9002d0be2fb38bd78e4b4dbde5606d7042f
         with:
@@ -52,7 +53,7 @@ jobs:
         run: |
           tag_name="${{ github.event.inputs.tag }}"
           version=${tag_name:7}
-          echo ::set-output name=image::"ghcr.io/build-trust/$ARTIFACT_NAME:${version}-draft"
+          echo ::set-output name=image::"ghcr.io/${ORGANIZATION}/$ARTIFACT_NAME:${version}-draft"
 
       - name: Update Docker Template
         shell: bash
@@ -83,7 +84,7 @@ jobs:
       - uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b
         with:
           registry: ghcr.io
-          username: build-trust
+          username: $ORGANIZATION
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: docker/setup-qemu-action@8b122486cedac8393e77aa9734c3528886e4a1a8
@@ -97,7 +98,7 @@ jobs:
           version=${tag_name:7}
 
           docker buildx build --push \
-            --tag ghcr.io/build-trust/ockam:${version}-draft \
+            --tag ghcr.io/${ORGANIZATION}/ockam:${version}-draft \
             --file ./ockam/tools/templates/Dockerfile \
             --platform linux/amd64,linux/arm64/v8,linux/arm/v7 .
 
@@ -113,7 +114,7 @@ jobs:
       - uses: docker/login-action@49ed152c8eca782a232dede0303416e8f356c37b
         with:
           registry: ghcr.io
-          username: build-trust
+          username: ${ORGANIZATION}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get Version
@@ -128,18 +129,18 @@ jobs:
         run: |
           set -o xtrace
 
-          docker pull ghcr.io/build-trust/ockam:${{ steps.image.outputs.version }}-draft
+          docker pull ghcr.io/${ORGANIZATION}/ockam:${{ steps.image.outputs.version }}-draft
 
-          manifest=$(docker manifest inspect -v ghcr.io/build-trust/ockam:${{ steps.image.outputs.version }}-draft)
+          manifest=$(docker manifest inspect -v ghcr.io/${ORGANIZATION}/ockam:${{ steps.image.outputs.version }}-draft)
           refs=$(echo $manifest | jq -r .[].Descriptor.digest)
 
           amended_refs=""
           for ref in ${refs[@]}; do
-            amended_refs=" ${amended_refs[@]} --amend ghcr.io/build-trust/ockam@$ref"
+            amended_refs=" ${amended_refs[@]} --amend ghcr.io/${ORGANIZATION}/ockam@$ref"
           done
 
-          docker manifest create ghcr.io/build-trust/ockam:${{ steps.image.outputs.version }} $amended_refs
-          docker manifest push ghcr.io/build-trust/ockam:${{ steps.image.outputs.version }}
+          docker manifest create ghcr.io/${ORGANIZATION}/ockam:${{ steps.image.outputs.version }} $amended_refs
+          docker manifest push ghcr.io/${ORGANIZATION}/ockam:${{ steps.image.outputs.version }}
 
-          docker manifest create ghcr.io/build-trust/ockam:latest $amended_refs
-          docker manifest push ghcr.io/build-trust/ockam:latest
+          docker manifest create ghcr.io/${ORGANIZATION}/ockam:latest $amended_refs
+          docker manifest push ghcr.io/${ORGANIZATION}/ockam:latest
