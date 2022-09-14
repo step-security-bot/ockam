@@ -16,8 +16,11 @@ on:
         - false
         - true
 
-permissions: write-all
-  # contents: read
+# permissions: write-all
+#   # contents: read
+
+permissions:
+  contents: read
 
 env:
   DEPLOYMENT_NAME: ockam
