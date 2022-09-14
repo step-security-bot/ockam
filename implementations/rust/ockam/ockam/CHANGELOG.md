@@ -4,6 +4,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.76.0 - 2022-09-14
+
+### Added
+
+- Add basic node manager service
+- Add `#[ockam::node]` macro attribute `access_control`
+- Support `Route` instead of `Address` for `RemoteForwarder` initialization
+- Add `credential` module to `ockam` crate
+- Add static forwarding service
+
+### Changed
+
+- Implement new `Vault` serialization
+- Rename new_context to new_detached
+- Implement basic ockam_command config module
+- Implement initial access control prototype
+- Refinements to initial access control prototype
+- Move nodeman protocol definitions to submodule
+- Move node manager service to ockam_api crate
+- Create node builder for easier node initialisation
+- Create worker builder for cleaner worker access control initialisation
+- `Storage` -> `AuthenticatedTable`
+- Identity updates
+- `AuthenticatedTable` -> `AuthenticatedStorage`
+- Implement attribute-based access control for message flow authorization
+- Cleanup ockam test macro
+- Move credentials to `ockam_identity`
+- Updated dependencies
+
+### Fixed
+
+- Improve the usability of ockam command
+- Fix forwarding service did not include onward route after forwarding
+- Creation of static forwarder without heartbeats
+- Creation of static forwarder at local nodes
+
+### Removed
+
+- Remove old credentials and signatures code
+
 ## 0.75.0 - 2022-09-09
 
 ### Added
