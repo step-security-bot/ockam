@@ -11,7 +11,7 @@ updated_crates=""
 
 if [[ ! -z $GIT_TAG ]]; then
   # Check if git tag is valid.
-  if git show-ref --tags $GIT_TAG --quiet; then
+  if git show-ref --tags "$GIT_TAG" --quiet; then
     echo "Specified $GIT_TAG as tag to track updated crates."
     last_git_tag=$GIT_TAG
   else
@@ -26,14 +26,14 @@ for crate in $(ls "implementations/rust/ockam"); do
     continue
   fi
 
-  is_publish=$(tomlq package.publish -f implementations/rust/ockam/$crate/Cargo.toml)
+  is_publish=$(tomlq package.publish -f implementations/rust/ockam/"$crate"/Cargo.toml)
   if [[ is_publish == false ]]; then
     echo "$crate indicate as not-publish"
     continue
   fi
 
-  if git diff $last_git_tag --quiet --name-status -- implementations/rust/ockam/$crate/src; then
-    git diff $last_git_tag --quiet --name-status -- implementations/rust/ockam/$crate/Cargo.toml || updated_crates="$updated_crates $crate"
+  if git diff "$last_git_tag" --quiet --name-status -- implementations/rust/ockam/"$crate"/src; then
+    git diff "$last_git_tag" --quiet --name-status -- implementations/rust/ockam/"$crate"/Cargo.toml || updated_crates="$updated_crates $crate"
   else
     updated_crates="$updated_crates $crate"
   fi

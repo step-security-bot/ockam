@@ -29,7 +29,7 @@ for ((c = 0; c < $length; c++)); do
   dependencies=$(eval "echo '$val' | jq '.[$c].dependencies'")
   deps_length=$(eval "echo '$dependencies' | jq '. | length' ")
 
-  declare -A crate$c
+  declare -A crate"$c"
 
   for ((d = 0; d < $deps_length; d++)); do
     dep=$(eval "echo '$dependencies' | jq '.[$d].name' | tr -d '\"' ")
@@ -37,12 +37,12 @@ for ((c = 0; c < $length; c++)); do
     set_dep="crate${c}[$dep]=0"
 
     if [[ ! -z ${sorted_packages_map[$dep]} ]]; then
-      eval $set_dep
+      eval "$set_dep"
     fi
   done
 
   set_crate="crates[$crate_name]=crate$c"
-  eval $set_crate
+  eval "$set_crate"
 done
 
 echo "sorting packages ${packages[@]} ${#packages[@]}"
@@ -51,7 +51,7 @@ while [[ ! -z ${packages[@]} ]]; do
   index=0
 
   for package in ${packages[@]}; do
-    deps=$(eval echo \${!${crates[$package]}[@]})
+    deps=$(eval echo \${!"${crates[$package]}"[@]})
     sorted=true
 
     # Check all package dependencies if there are any

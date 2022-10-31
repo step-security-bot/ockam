@@ -70,4 +70,4 @@ if [[ $OCKAM_PUBLISH_RECENT_FAILURE == true ]]; then
   done
 fi
 
-echo y | cargo release release --config tools/scripts/release/release.toml --no-tag --no-verify --no-dev-version $exclude_string --token $OCKAM_PUBLISH_TOKEN --execute
+echo y | cargo release release --config tools/scripts/release/release.toml --no-tag --no-verify --no-dev-version "$exclude_string" --token "$OCKAM_PUBLISH_TOKEN" --execute
