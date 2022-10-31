@@ -34,13 +34,13 @@ versions=$(gh api -H "Accept: application/vnd.github+json" /$USER_TYPE/$OWNER/pa
 version_length=$(jq '. | length' <<<"$versions")
 latest_tag=${TAG_NAME:7}
 
-for ((c = 0; c < $version_length; c++)); do
+for ((c = 0; c < version_length; c++)); do
   id=$(jq -r ".[$c].id" <<<"$versions")
 
   tags=$(jq ".[$c].metadata.container.tags" <<<"$versions")
   tags_length=$(jq ". | length" <<<"$tags")
 
-  for ((d = 0; d < $tags_length; d++)); do
+  for ((d = 0; d < tags_length; d++)); do
     tag_name=$(jq -r ".[$d]" <<<"$tags")
 
     if [[ $tag_name == "$latest_tag-draft" ]]; then
@@ -61,7 +61,7 @@ function close_pr() {
   ockam_prs=$(gh api -H "Accept: application/vnd.github+json" /repos/${OWNER}/"${repository}"/pulls)
   ockam_prs_length=$(jq '.|length' <<<"$ockam_prs")
 
-  for ((c = 0; c < $ockam_prs_length; c++)); do
+  for ((c = 0; c < ockam_prs_length; c++)); do
     title=$(jq -r ".[$c].title" <<<"$ockam_prs")
     if [[ $title == "Ockam Release $(date +'%d-%m-%Y')" ]]; then
       pr_number=$(jq -r ".[$c].number" <<<"$ockam_prs")
