@@ -17,26 +17,26 @@ sorted_packages=()
 declare -A crates
 declare -A sorted_packages_map
 
-for ((c = 0; c < $length; c++)); do
+for ((c = 0; c < length; c++)); do
   crate_name=$(eval "echo '$val' | jq '.[$c].name' | tr -d '\"' ")
 
   sorted_packages_map[$crate_name]=false
   packages=(${packages[@]} $crate_name)
 done
 
-for ((c = 0; c < $length; c++)); do
+for ((c = 0; c < length; c++)); do
   crate_name=$(eval "echo '$val' | jq '.[$c].name' | tr -d '\"' ")
   dependencies=$(eval "echo '$val' | jq '.[$c].dependencies'")
   deps_length=$(eval "echo '$dependencies' | jq '. | length' ")
 
   declare -A crate"$c"
 
-  for ((d = 0; d < $deps_length; d++)); do
+  for ((d = 0; d < deps_length; d++)); do
     dep=$(eval "echo '$dependencies' | jq '.[$d].name' | tr -d '\"' ")
 
     set_dep="crate${c}[$dep]=0"
 
-    if [[ ! -z ${sorted_packages_map[$dep]} ]]; then
+    if [[ -n ${sorted_packages_map[$dep]} ]]; then
       eval "$set_dep"
     fi
   done
@@ -47,16 +47,16 @@ done
 
 echo "sorting packages ${packages[@]} ${#packages[@]}"
 
-while [[ ! -z ${packages[@]} ]]; do
+while [[ -n ${packages[@]} ]]; do
   index=0
 
-  for package in ${packages[@]}; do
+  for package in "${packages[@]}"; do
     deps=$(eval echo \${!"${crates[$package]}"[@]})
     sorted=true
 
     # Check all package dependencies if there are any
     # that hasn't been indicated to be uploaded.
-    for dep in ${deps[@]}; do
+    for dep in "${deps[@]}"; do
       if [[ ${sorted_packages_map[$dep]} == false ]]; then
         sorted=false
       fi
