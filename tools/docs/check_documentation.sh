@@ -2,7 +2,7 @@
 
 if [ -z "$OCKAM_HOME" ]; then
   echo "Please set OCKAM_HOME to the repo root"
-  exit -1
+  exit 1
 fi
 
 # Getting Started Guide
@@ -36,7 +36,7 @@ export E2EAALC_EXAMPLES="$OCKAM_HOME/examples/rust/tcp_inlet_and_outlet/examples
 export TOOLS_DIR="$OCKAM_HOME/tools/docs"
 
 # Install example_blocks binary, if needed
-if [ -z $(which example_blocks) ]; then
+if [ -z "$(which example_blocks)" ]; then
   echo "Building example_blocks utility"
   pushd "$TOOLS_DIR/example_blocks" &>/dev/null || exit
   cargo -q install --path .
@@ -57,8 +57,7 @@ function check_readme {
   page=$1
   export EXAMPLES_DIR=$2
 
-  "$TOOLS_DIR"/verify_md.sh "$page"
-  if [[ $? -ne 0 ]]; then
+  if ! "$TOOLS_DIR"/verify_md.sh "$page"; then
     echo "$page has outdated examples differing from $EXAMPLES_DIR"
     ERR=1
   fi
