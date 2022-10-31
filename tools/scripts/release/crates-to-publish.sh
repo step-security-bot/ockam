@@ -9,7 +9,7 @@ set -e
 last_git_tag=$(eval "git describe --tags --abbrev=0")
 updated_crates=""
 
-if [[ ! -z $GIT_TAG ]]; then
+if [[ -n $GIT_TAG ]]; then
   # Check if git tag is valid.
   if git show-ref --tags "$GIT_TAG" --quiet; then
     echo "Specified $GIT_TAG as tag to track updated crates."
@@ -20,7 +20,7 @@ if [[ ! -z $GIT_TAG ]]; then
   fi
 fi
 
-for crate in $(ls "implementations/rust/ockam"); do
+for crate in implementations/rust/ockam/*; do
   if [[ -f implementations/rust/ockam/$crate ]]; then
     echo "$crate is a file, skipping."
     continue
