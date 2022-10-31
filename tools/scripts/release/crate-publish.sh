@@ -14,16 +14,16 @@ source tools/scripts/release/crates-to-publish.sh
 declare -A bumped_crates
 
 # Get crates that were updated, this will be published.
-for crate in ${updated_crates[@]}; do
+for crate in "${updated_crates[@]}"; do
   name=$(eval "tomlq package.name -f implementations/rust/ockam/$crate/Cargo.toml")
   bumped_crates[$name]=true
 done
 
-crates_specified_to_be_excluded=($OCKAM_PUBLISH_EXCLUDE_CRATES)
+crates_specified_to_be_excluded=("$OCKAM_PUBLISH_EXCLUDE_CRATES")
 exclude_string=""
 
 # Get crates that are indicated to be excluded.
-for crate in ${crates_specified_to_be_excluded[@]}; do
+for crate in "${crates_specified_to_be_excluded[@]}"; do
   echo "Excluding $crate from publishing as specified in env"
   exclude_string="$exclude_string --exclude $crate"
   bumped_crates[$crate]=false
@@ -32,7 +32,7 @@ done
 declare -A crates_version
 
 # Every other crate that were not updated...
-for crate in $(ls "implementations/rust/ockam"); do
+for crate in implementations/rust/ockam/*; do
   if [[ -f implementations/rust/ockam/$crate ]]; then
     echo "$crate is a file, skipping."
     continue
