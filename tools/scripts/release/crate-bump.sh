@@ -17,7 +17,7 @@ fi
 
 if [[ -z $OCKAM_BUMP_BUMPED_DEP_CRATES_VERSION ]]; then
   echo "Version of bumped transitive dependencies set to minor"
-  BUMPED_DEP_CRATES_VERSION="minor"
+  OCKAM_BUMP_BUMPED_DEP_CRATES_VERSION="minor"
 fi
 
 declare -A specified_crate_version
