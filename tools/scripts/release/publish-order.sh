@@ -21,7 +21,7 @@ for ((c = 0; c < length; c++)); do
   crate_name=$(eval "echo '$val' | jq '.[$c].name' | tr -d '\"' ")
 
   sorted_packages_map[$crate_name]=false
-  packages=(${packages[@]} $crate_name)
+  IFS=" " read -r -a packages <<< "${packages[*]} $crate_name"
 done
 
 for ((c = 0; c < length; c++)); do
@@ -45,9 +45,9 @@ for ((c = 0; c < length; c++)); do
   eval "$set_crate"
 done
 
-echo "sorting packages ${packages[@]} ${#packages[@]}"
+echo "sorting packages ${packages[*]} ${#packages[@]}"
 
-while [[ -n ${packages[@]} ]]; do
+while [[ -n "${packages[*]}" ]]; do
   index=0
 
   for package in "${packages[@]}"; do
@@ -64,13 +64,13 @@ while [[ -n ${packages[@]} ]]; do
 
     if $sorted; then
       echo "-----> $package sorted $index ${#packages[@]}"
-      sorted_packages=(${sorted_packages[@]} $package)
+      IFS=" " read -r -a sorted_packages <<< "${sorted_packages[*]} $package"
       sorted_packages_map[$package]=true
 
       # Remove package from packages list
-      packages=(${packages[@]:0:index} ${packages[@]:index+1})
+      IFS=" " read -r -a packages <<< "${packages[*]:0:index} ${packages[*]:index+1}"
 
-      echo "Packages left are ${packages[@]}"
+      echo "Packages left are ${packages[*]}"
       break
     fi
     ((index = index + 1))
