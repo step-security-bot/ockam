@@ -1,0 +1,52 @@
+# This workflow releases Ockam asset/release as production
+# and also update git tag commit to that updated by mergify.
+name: Ockam GitHub Production Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_tag:
+        description: Git Tag To Update To Ockam Develop Commit
+        required: true
+
+permissions:
+  # Contents permission allows us read this repository.
+  contents: write
+
+jobs:
+  release_ockam:
+    runs-on: ubuntu-20.04
+    environment: release
+    name: "Release Ockam Assets"
+
+    steps:
+      - name: Checkout Ockam Repository
+        uses: actions/checkout@93ea575cb5d8a053eaa0ac8fa3b40d7e05a33cc8
+        with:
+          fetch-depth: 0 # checkout full tree
+
+      - name: Get Commit Of Develop
+        id: develop_sha
+        shell: bash
+        run: |
+          develop_sha=$(git rev-parse origin/develop)
+          echo "sha=$develop_sha" >> $GITHUB_OUTPUT
+
+      - name: Import GPG key
+        uses: build-trust/.github/actions/import_gpg@a6377d3c2dac878b92a0da26cdf3da2856c64840
+        with:
+          gpg_private_key: '${{ secrets.GPG_PRIVATE_KEY }}'
+          gpg_password: '${{ secrets.GPG_PASSPHRASE }}'
+          gpg_name: '${{ secrets.GPG_USER_NAME }}'
+          gpg_email: '${{ secrets.GPG_EMAIL }}'
+
+      - name: Update Tag Commit To That Merged by Mergify On Develop
+        shell: bash
+        run: |
+          git tag -s -a ${{ github.event.inputs.git_tag }} ${{ steps.develop_sha.outputs.sha }} -m "Ockam Release" -f
+          git push origin ${{ github.event.inputs.git_tag }} -f
+
+      - name: Release GitHub Asset
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.event.inputs.git_tag }}" --draft=false -R ${{ github.repository_owner }}/ockam
