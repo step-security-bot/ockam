@@ -326,8 +326,8 @@ jobs:
           os: ubuntu-20.04
           release_path: implementations/elixir/ockam/ockam_vault_software/_build/dev/lib/ockam_vault_software/priv/native
           release_asset_name: ockam.linux_x86_64_gnu_elixir_ffi.so
-          container: ghcr.io/build-trust/ockam-builder@sha256:dac128554a96b302b6907bda7b677b1832d7952b35e0b35c4f6402cf15fe03e3
           target: x86_64-unknown-linux-musl
+          container: ghcr.io/build-trust/ockam-builder@sha256:dac128554a96b302b6907bda7b677b1832d7952b35e0b35c4f6402cf15fe03e3
         - build: linux_arm
           os: ubuntu-20.04
           release_path: implementations/elixir/ockam/ockam_vault_software/_build/dev/lib/ockam_vault_software/priv/native
@@ -349,6 +349,7 @@ jobs:
           override: true
 
       - name: Install QEMU
+        if: matrix.build == 'linux_arm'
         run: |
           sudo apt-get install qemu binfmt-support qemu-user-static 
           docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
@@ -359,19 +360,15 @@ jobs:
         with:
           args: |
             bash -c "export PRIVATE_KEY='${{ secrets.COSIGN_PRIVATE_KEY }}' && export COSIGN_PASSWORD='${{ secrets.COSIGN_PRIVATE_KEY_PASSWORD }}';
+            rustup target add ${{ matrix.target }};
             set -xe && pwd && uname -a && ls && cargo clean && cargo build --release --package ockam-ffi --target ${{ matrix.target }};
             rm -rf target/release && mv target/${{ matrix.target }}/release target
 
-      - name: Build Nif For Linux
+      - name: Build NIF For Linux
         if: matrix.build != 'macos'
-        uses: docker://${{ matrix.container }}
-        with:
-          args: |
-            cd implementations/elixir/ockam/ockam_vault_software;
-            mix recompile.native;
-            
-            cd _build/dev/lib/ockam_vault_software/priv/native;
-            cosign sign-blob --key env://PRIVATE_KEY libockam_elixir_ffi.so > libockam_elixir_ffi.so.sig;"
+        run: |
+          docker run --rm --user "$(id -u):$(id -g)" --volume $(pwd):/work ${{ matrix.container }} bash -c \
+            "cd implementations/elixir/ockam/ockam_vault_software; mix recompile.native; cd _build/dev/lib/ockam_vault_software/priv/native; PRIVATE_KEY='${{ secrets.COSIGN_PRIVATE_KEY }}' COSIGN_PASSWORD='${{ secrets.COSIGN_PRIVATE_KEY_PASSWORD }}' cosign sign-blob --key env://PRIVATE_KEY libockam_elixir_ffi.so > libockam_elixir_ffi.so.sig;";
 
       - name: Build NIF For MacOS
         if: matrix.build == 'macos'
