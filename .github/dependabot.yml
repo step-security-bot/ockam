@@ -111,3 +111,69 @@ updates:
     labels:
       - "Type: Dependencies"
       - "Implementation: Elixir"
+
+
+  - package-ecosystem: docker
+    directory: /.devcontainer
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /examples/rust/ockam_kafka
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /examples/rust/tcp_inlet_and_outlet
+    schedule:
+      interval: daily
+
+  - package-ecosystem: cargo
+    directory: /implementations/rust/ockam/ockam_examples/example_projects/ssh_credentials
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /implementations/typescript/.yarn/sdks/typescript
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /implementations/typescript/ockam/ockam
+    schedule:
+      interval: daily
+
+  - package-ecosystem: npm
+    directory: /implementations/typescript
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /integrations/suborbital/demo
+    schedule:
+      interval: daily
+
+  - package-ecosystem: cargo
+    directory: /integrations/suborbital/helloworld-rs
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /tools/docker/builder
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /tools/docker/cloud-node
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /tools/docker/healthcheck
+    schedule:
+      interval: daily
+
+  - package-ecosystem: docker
+    directory: /tools/docker/ockam
+    schedule:
+      interval: daily
